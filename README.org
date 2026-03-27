@@ -1,0 +1,44 @@
+#+title: VIM in Motion
+
+
+* How a VIM motion works
+** The universal template
+#+begin_src txt
+action + count + motion
+#+end_src
+
+*** Actions
+- ~d~ for delete
+- ~y~ for yank (copy)
+- ~v~ is for visual (select)
+- ~V~ is for visual line (select but line by line)
+
+*** Motion
+- ~w~ for word forward
+- ~b~ for word backward
+- ~e~ for end of word
+- ~$~ for end of line
+- ~0~ for beginning of line
+
+
+*** Combining them
+- ~d3w~ means *delete 3 words forward*
+- ~dw~ means *delete 1 word forward* (the same as ~d1w~ but in a motion, the count is
+  optional)
+- ~d$~ means delete till the end of the line
+  
+** Template with text objects
+#+begin_src txt
+action + [i/a] + object
+#+end_src
+*** What is ~[i/a]~
+~i~ means inside and ~a~ means around.
+
+*** Object
+- ~w~ means word
+- ~(~ for paranthesis and ~"~ for double quotes
+- ~t~ means tag (XML or HTML)
+
+*** Combining them
+- ~vit~ means *select contents inside tag*.
+
