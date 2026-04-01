@@ -1,6 +1,29 @@
 #+title: VIM in Motion
 
 
+* Modes
+- It's a Modal text editor, where each mode changes what your keys do. 
+- Your keys don't just type, they also serve as different ways of interacting
+  with text through keybinds.
+- In VIM, there are 3 modes.
+** Normal Mode (default)
+- This is where you navigate and edit
+- Keys do actions, not typing
+- Example:
+  - ~w~ is for moving forward a word
+  - ~d~ is for deleting (but needs a motion)
+
+** Insert Mode
+- This is where you actually type text
+  - ~i~ is for inserting before cursor
+  - ~a~ is for inserting after cursor
+Press ~Esc~ to go back to Normal mode
+
+** Visual Mode
+- Used to select text
+  - ~v~ is for character selection
+  - ~V~ is for line selection
+
 * How a VIM motion works
 ** The universal template
 #+begin_src txt
