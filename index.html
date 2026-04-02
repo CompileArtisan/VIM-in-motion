@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VIM in Motion</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,700;1,400&family=Bebas+Neue&display=swap');
+
+  :root {
+    --bg: #0d0d0d;
+    --surface: #141414;
+    --surface2: #1c1c1c;
+    --border: #2a2a2a;
+    --accent: #b8f55a;
+    --accent2: #5afff0;
+    --accent3: #ff5a5a;
+    --text: #e8e8e0;
+    --muted: #666;
+    --yellow: #f5c842;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── SCANLINE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,.15) 2px, rgba(0,0,0,.15) 4px);
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ── SCREENS ── */
+  .screen { display: none; min-height: 100vh; }
+  .screen.active { display: flex; flex-direction: column; }
+
+  /* ══════════════════════════════
+     LANDING / LOGIN
+  ══════════════════════════════ */
+  #screen-login {
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    position: relative;
+  }
+
+  .login-bg {
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 80%, rgba(184,245,90,.08) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 60% at 80% 20%, rgba(90,255,240,.06) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .login-box {
+    width: 100%; max-width: 480px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 3rem 2.5rem;
+    position: relative;
+  }
+
+  .login-box::before {
+    content: '';
+    position: absolute; top: -1px; left: 2rem; right: 2rem; height: 2px;
+    background: var(--accent);
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 3.5rem;
+    line-height: 1;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-bottom: .25rem;
+  }
+
+  .logo span { color: var(--text); }
+
+  .tagline {
+    color: var(--muted);
+    font-size: .75rem;
+    margin-bottom: 2.5rem;
+    letter-spacing: 1px;
+  }
+
+  .field-group { margin-bottom: 1.25rem; }
+
+  label {
+    display: block;
+    font-size: .7rem;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-bottom: .4rem;
+    text-transform: uppercase;
+  }
+
+  input[type="text"], input[type="password"] {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: inherit;
+    font-size: .9rem;
+    padding: .7rem 1rem;
+    outline: none;
+    transition: border-color .2s;
+  }
+
+  input:focus { border-color: var(--accent); }
+
+  .btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .85rem;
+    letter-spacing: 1px;
+    padding: .75rem 1.5rem;
+    border: none;
+    cursor: pointer;
+    transition: all .15s;
+    text-transform: uppercase;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+    width: 100%;
+    margin-top: .5rem;
+    font-weight: 700;
+  }
+
+  .btn-primary:hover { background: #caff70; }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--accent2);
+    border: 1px solid var(--accent2);
+    padding: .5rem 1rem;
+    font-size: .75rem;
+  }
+
+  .btn-ghost:hover { background: rgba(90,255,240,.1); }
+
+  .btn-danger {
+    background: transparent;
+    color: var(--accent3);
+    border: 1px solid var(--accent3);
+    padding: .4rem .9rem;
+    font-size: .75rem;
+  }
+
+  .admin-toggle {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    text-align: center;
+  }
+
+  .admin-toggle p { color: var(--muted); font-size: .72rem; margin-bottom: .5rem; }
+
+  .error-msg {
+    color: var(--accent3);
+    font-size: .75rem;
+    margin-top: .5rem;
+    display: none;
+  }
+
+  /* ══════════════════════════════
+     GAME SCREEN
+  ══════════════════════════════ */
+  #screen-game {
+    flex-direction: column;
+  }
+
+  .game-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .75rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  .game-header .logo-sm {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    color: var(--accent);
+    letter-spacing: 2px;
+  }
+
+  .player-info {
+    display: flex; align-items: center; gap: 1rem;
+    font-size: .75rem; color: var(--muted);
+  }
+
+  .player-name { color: var(--text); font-weight: 700; }
+
+  .stage-progress {
+    display: flex; align-items: center; gap: .5rem;
+  }
+
+  .stage-pip {
+    width: 8px; height: 8px;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+  }
+
+  .stage-pip.done { background: var(--accent); border-color: var(--accent); }
+  .stage-pip.active { background: var(--accent2); border-color: var(--accent2); box-shadow: 0 0 6px var(--accent2); }
+
+  .game-body {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  /* LEFT: vim editor area */
+  .vim-area {
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+    gap: 1rem;
+    overflow-y: auto;
+  }
+
+  .stage-header {
+    display: flex; align-items: baseline; gap: 1rem;
+  }
+
+  .stage-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 3rem;
+    color: var(--border);
+    line-height: 1;
+  }
+
+  .stage-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .stage-desc {
+    font-size: .8rem;
+    color: var(--muted);
+    line-height: 1.7;
+    max-width: 600px;
+  }
+
+  .cheatsheet {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--yellow);
+    padding: .75rem 1rem;
+    font-size: .75rem;
+    line-height: 1.9;
+  }
+
+  .cheatsheet .cs-title {
+    color: var(--yellow);
+    font-size: .65rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: .3rem;
+  }
+
+  .key {
+    display: inline-block;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 0 .3rem;
+    border-radius: 2px;
+    color: var(--accent2);
+    font-size: .75rem;
+  }
+
+  /* THE VIM EDITOR */
+  .vim-editor-wrap {
+    border: 1px solid var(--border);
+    background: var(--bg);
+    flex: 1;
+    min-height: 200px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .vim-editor-wrap::before {
+    content: attr(data-mode);
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: var(--accent);
+    color: #000;
+    font-size: .7rem;
+    padding: .15rem .5rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    z-index: 10;
+  }
+
+  .vim-editor-wrap[data-mode="-- INSERT --"]::before { background: var(--accent2); }
+  .vim-editor-wrap[data-mode="-- VISUAL --"]::before { background: var(--yellow); }
+
+  #vim-editor {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .9rem;
+    line-height: 1.8;
+    padding: 1rem 1rem 2rem;
+    resize: none;
+    width: 100%;
+    caret-color: var(--accent);
+  }
+
+  .task-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent2);
+    padding: 1rem;
+    font-size: .8rem;
+  }
+
+  .task-box .task-label {
+    color: var(--accent2);
+    font-size: .65rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: .4rem;
+  }
+
+  .task-goal { color: var(--text); line-height: 1.6; }
+
+  .task-goal .target { color: var(--accent); font-weight: 700; }
+
+  .check-btn {
+    margin-top: .75rem;
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    font-family: inherit;
+    font-size: .75rem;
+    letter-spacing: 1px;
+    padding: .5rem 1.5rem;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all .15s;
+  }
+
+  .check-btn:hover { background: var(--accent); color: #000; }
+
+  .feedback {
+    font-size: .8rem;
+    margin-top: .5rem;
+    padding: .5rem .75rem;
+    display: none;
+  }
+
+  .feedback.success { background: rgba(184,245,90,.1); border: 1px solid var(--accent); color: var(--accent); }
+  .feedback.fail { background: rgba(255,90,90,.1); border: 1px solid var(--accent3); color: var(--accent3); }
+
+  /* RIGHT: sidebar */
+  .game-sidebar {
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar-tab {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tab-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--muted);
+    font-family: inherit;
+    font-size: .7rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: .7rem;
+    cursor: pointer;
+    transition: all .15s;
+  }
+
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .tab-content { display: none; flex: 1; overflow-y: auto; padding: 1rem; }
+  .tab-content.active { display: block; }
+
+  /* stages list */
+  .stage-item {
+    display: flex; align-items: center; gap: .75rem;
+    padding: .6rem .75rem;
+    margin-bottom: .35rem;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all .15s;
+    font-size: .78rem;
+  }
+
+  .stage-item:hover { border-color: var(--muted); }
+  .stage-item.active { border-color: var(--accent2); background: rgba(90,255,240,.05); }
+  .stage-item.completed { border-color: var(--accent); opacity: .7; }
+  .stage-item.locked { opacity: .35; cursor: not-allowed; }
+
+  .stage-icon { font-size: 1rem; width: 1.2rem; text-align: center; }
+
+  /* reference */
+  .ref-section { margin-bottom: 1.25rem; }
+  .ref-title { color: var(--yellow); font-size: .65rem; letter-spacing: 2px; text-transform: uppercase; margin-bottom: .5rem; border-bottom: 1px solid var(--border); padding-bottom: .25rem; }
+  .ref-row { display: flex; justify-content: space-between; padding: .3rem 0; font-size: .75rem; border-bottom: 1px solid rgba(255,255,255,.04); }
+  .ref-row:last-child { border: none; }
+  .ref-key { color: var(--accent2); }
+  .ref-desc { color: var(--muted); text-align: right; }
+
+  /* ══════════════════════════════
+     ADMIN / INSTRUCTOR SCREEN
+  ══════════════════════════════ */
+  #screen-admin { flex-direction: column; }
+
+  .admin-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .75rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .admin-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    letter-spacing: 2px;
+  }
+
+  .admin-logo span { color: var(--accent); }
+
+  .admin-meta { font-size: .72rem; color: var(--muted); }
+
+  .admin-body {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    overflow: hidden;
+  }
+
+  .admin-sidebar {
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    padding: 1rem;
+    overflow-y: auto;
+  }
+
+  .admin-sidebar-title {
+    font-size: .65rem;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: .75rem;
+  }
+
+  .player-card {
+    border: 1px solid var(--border);
+    padding: .7rem .85rem;
+    margin-bottom: .5rem;
+    cursor: pointer;
+    transition: all .15s;
+    position: relative;
+  }
+
+  .player-card:hover, .player-card.selected { border-color: var(--accent2); }
+
+  .player-card .pc-name { font-size: .85rem; font-weight: 700; margin-bottom: .2rem; }
+
+  .player-card .pc-meta { font-size: .7rem; color: var(--muted); }
+
+  .player-card .pc-stage {
+    position: absolute; top: .5rem; right: .6rem;
+    font-size: .65rem;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: .1rem .3rem;
+  }
+
+  .online-dot {
+    display: inline-block; width: 6px; height: 6px;
+    background: var(--accent); border-radius: 50%;
+    margin-right: .3rem;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .3; }
+  }
+
+  .admin-main { padding: 1.5rem; overflow-y: auto; }
+
+  .admin-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .stat-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 1rem;
+  }
+
+  .stat-box .stat-val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.5rem;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .stat-box .stat-label {
+    font-size: .65rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: .25rem;
+  }
+
+  .admin-table-title {
+    font-size: .65rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: .75rem;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .8rem;
+  }
+
+  th {
+    text-align: left;
+    font-size: .65rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: .5rem .75rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: .6rem .75rem;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+    vertical-align: middle;
+  }
+
+  tr:hover td { background: rgba(255,255,255,.02); }
+
+  .progress-bar-wrap {
+    background: var(--border);
+    height: 4px;
+    border-radius: 2px;
+    width: 100px;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width .4s;
+  }
+
+  .badge {
+    display: inline-block;
+    font-size: .6rem;
+    letter-spacing: 1px;
+    padding: .15rem .4rem;
+    text-transform: uppercase;
+  }
+
+  .badge-green { background: rgba(184,245,90,.15); color: var(--accent); border: 1px solid var(--accent); }
+  .badge-blue { background: rgba(90,255,240,.1); color: var(--accent2); border: 1px solid var(--accent2); }
+  .badge-red { background: rgba(255,90,90,.1); color: var(--accent3); border: 1px solid var(--accent3); }
+
+  .live-log {
+    margin-top: 2rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 1rem;
+    height: 180px;
+    overflow-y: auto;
+  }
+
+  .live-log-title {
+    font-size: .65rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: .75rem;
+  }
+
+  .log-entry {
+    font-size: .72rem;
+    padding: .25rem 0;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+    display: flex; gap: .75rem;
+  }
+
+  .log-time { color: var(--muted); white-space: nowrap; }
+  .log-player { color: var(--accent2); }
+  .log-msg { color: var(--text); }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 2rem; right: 2rem;
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-size: .8rem;
+    padding: .75rem 1.25rem;
+    z-index: 9000;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all .3s;
+  }
+
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); }
+
+  /* ── WINNER OVERLAY ── */
+  .winner-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.85);
+    z-index: 8000;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .winner-overlay.show { display: flex; }
+
+  .winner-box {
+    text-align: center;
+    border: 1px solid var(--accent);
+    padding: 3rem 4rem;
+    background: var(--surface);
+    position: relative;
+  }
+
+  .winner-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 4rem;
+    color: var(--accent);
+    letter-spacing: 4px;
+  }
+
+  .winner-sub { color: var(--muted); font-size: .8rem; margin-top: .5rem; }
+
+  @media (max-width: 768px) {
+    .game-body { grid-template-columns: 1fr; }
+    .game-sidebar { display: none; }
+    .admin-body { grid-template-columns: 1fr; }
+    .admin-sidebar { display: none; }
+    .admin-stats { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══ SCREEN: LOGIN ══ -->
+<div id="screen-login" class="screen active">
+  <div class="login-bg"></div>
+  <div class="login-box">
+    <div class="logo">VIM <span>in</span> Motion</div>
+    <div class="tagline">// workshop · learn by doing</div>
+
+    <div class="field-group">
+      <label>Your Name</label>
+      <input type="text" id="login-name" placeholder="e.g. ada_lovelace" autocomplete="off">
+    </div>
+
+    <button class="btn btn-primary" onclick="loginPlayer()">Join Workshop →</button>
+    <div class="error-msg" id="login-error">Please enter your name</div>
+
+    <div class="admin-toggle">
+      <p>Conducting the workshop?</p>
+      <button class="btn btn-ghost" onclick="showAdminLogin()">Instructor Login</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN: ADMIN LOGIN (hidden by default, injected) ══ -->
+<div id="screen-admin-login" class="screen" style="align-items:center;justify-content:center;padding:2rem;">
+  <div class="login-box">
+    <div class="logo" style="font-size:2rem">Instructor <span>Panel</span></div>
+    <div class="tagline">// admin access only</div>
+    <div class="field-group">
+      <label>Admin Password</label>
+      <input type="password" id="admin-pass" placeholder="••••••••">
+    </div>
+    <button class="btn btn-primary" onclick="loginAdmin()">Enter Dashboard →</button>
+    <div class="error-msg" id="admin-error">Incorrect password</div>
+    <div class="admin-toggle">
+      <button class="btn btn-ghost" onclick="showScreen('screen-login')">← Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN: GAME ══ -->
+<div id="screen-game" class="screen">
+  <div class="game-header">
+    <div class="logo-sm">VIM ▸ Motion</div>
+    <div class="stage-progress" id="stage-pips"></div>
+    <div class="player-info">
+      <span>playing as</span>
+      <span class="player-name" id="header-player-name"></span>
+      <button class="btn-danger btn" onclick="logout()" style="padding:.3rem .6rem;font-size:.65rem">exit</button>
+    </div>
+  </div>
+
+  <div class="game-body">
+    <!-- vim editor area -->
+    <div class="vim-area" id="vim-area"></div>
+
+    <!-- sidebar -->
+    <div class="game-sidebar">
+      <div class="sidebar-tab">
+        <button class="tab-btn active" onclick="switchTab('stages')">Stages</button>
+        <button class="tab-btn" onclick="switchTab('ref')">Reference</button>
+      </div>
+      <div class="tab-content active" id="tab-stages"></div>
+      <div class="tab-content" id="tab-ref">
+        <div class="ref-section">
+          <div class="ref-title">Modes</div>
+          <div class="ref-row"><span class="ref-key">i</span><span class="ref-desc">insert before cursor</span></div>
+          <div class="ref-row"><span class="ref-key">a</span><span class="ref-desc">insert after cursor</span></div>
+          <div class="ref-row"><span class="ref-key">Esc</span><span class="ref-desc">back to normal</span></div>
+          <div class="ref-row"><span class="ref-key">v</span><span class="ref-desc">visual (char)</span></div>
+          <div class="ref-row"><span class="ref-key">V</span><span class="ref-desc">visual (line)</span></div>
+        </div>
+        <div class="ref-section">
+          <div class="ref-title">Motions</div>
+          <div class="ref-row"><span class="ref-key">h j k l</span><span class="ref-desc">← ↓ ↑ →</span></div>
+          <div class="ref-row"><span class="ref-key">w</span><span class="ref-desc">word forward</span></div>
+          <div class="ref-row"><span class="ref-key">b</span><span class="ref-desc">word backward</span></div>
+          <div class="ref-row"><span class="ref-key">e</span><span class="ref-desc">end of word</span></div>
+          <div class="ref-row"><span class="ref-key">$</span><span class="ref-desc">end of line</span></div>
+          <div class="ref-row"><span class="ref-key">0</span><span class="ref-desc">start of line</span></div>
+          <div class="ref-row"><span class="ref-key">gg</span><span class="ref-desc">top of file</span></div>
+          <div class="ref-row"><span class="ref-key">G</span><span class="ref-desc">bottom of file</span></div>
+        </div>
+        <div class="ref-section">
+          <div class="ref-title">Actions</div>
+          <div class="ref-row"><span class="ref-key">d</span><span class="ref-desc">delete + motion</span></div>
+          <div class="ref-row"><span class="ref-key">y</span><span class="ref-desc">yank (copy)</span></div>
+          <div class="ref-row"><span class="ref-key">p</span><span class="ref-desc">paste after</span></div>
+          <div class="ref-row"><span class="ref-key">u</span><span class="ref-desc">undo</span></div>
+          <div class="ref-row"><span class="ref-key">.</span><span class="ref-desc">repeat last action</span></div>
+        </div>
+        <div class="ref-section">
+          <div class="ref-title">Text Objects</div>
+          <div class="ref-row"><span class="ref-key">iw / aw</span><span class="ref-desc">inside / around word</span></div>
+          <div class="ref-row"><span class="ref-key">i" / a"</span><span class="ref-desc">inside / around quotes</span></div>
+          <div class="ref-row"><span class="ref-key">i( / a(</span><span class="ref-desc">inside / around parens</span></div>
+          <div class="ref-row"><span class="ref-key">it / at</span><span class="ref-desc">inside / around tag</span></div>
+        </div>
+        <div class="ref-section">
+          <div class="ref-title">Template</div>
+          <div class="ref-row"><span class="ref-key">action + count + motion</span><span class="ref-desc"></span></div>
+          <div class="ref-row"><span class="ref-key">d3w</span><span class="ref-desc">delete 3 words</span></div>
+          <div class="ref-row"><span class="ref-key">d$</span><span class="ref-desc">delete to end of line</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN: ADMIN ══ -->
+<div id="screen-admin" class="screen">
+  <div class="admin-header">
+    <div class="admin-logo">VIM in Motion <span>// Instructor</span></div>
+    <div style="display:flex;gap:.75rem;align-items:center">
+      <span class="admin-meta" id="admin-clock"></span>
+      <button class="btn btn-danger" onclick="logout()">Logout</button>
+    </div>
+  </div>
+  <div class="admin-body">
+    <div class="admin-sidebar">
+      <div class="admin-sidebar-title">Players Online</div>
+      <div id="admin-player-list"></div>
+    </div>
+    <div class="admin-main">
+      <div class="admin-stats">
+        <div class="stat-box">
+          <div class="stat-val" id="stat-players">0</div>
+          <div class="stat-label">Players Joined</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="stat-active">0</div>
+          <div class="stat-label">Active Now</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="stat-completed">0</div>
+          <div class="stat-label">Finished All</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="stat-stages">0</div>
+          <div class="stat-label">Total Stages</div>
+        </div>
+      </div>
+
+      <div class="admin-table-title">
+        <span>Player Progress</span>
+        <button class="btn btn-ghost" onclick="refreshAdmin()" style="padding:.3rem .7rem;font-size:.65rem">↻ Refresh</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Player</th>
+            <th>Stage</th>
+            <th>Progress</th>
+            <th>Status</th>
+            <th>Last Active</th>
+          </tr>
+        </thead>
+        <tbody id="admin-table-body"></tbody>
+      </table>
+
+      <div class="live-log">
+        <div class="live-log-title">Live Activity Log</div>
+        <div id="live-log-entries"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- WINNER OVERLAY -->
+<div class="winner-overlay" id="winner-overlay">
+  <div class="winner-box">
+    <div class="winner-title">🎉 Stage Complete!</div>
+    <div class="winner-sub" id="winner-msg">Moving to next stage...</div>
+    <button class="btn btn-primary" style="margin-top:1.5rem;width:auto;padding:.6rem 2rem" onclick="dismissWinner()">Continue →</button>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════
+   CONFIG — Edit this section to customise
+════════════════════════════════════════════ */
+
+// ADMIN password — change this!
+const ADMIN_PASSWORD = "vimworkshop2024";
+
+// Firebase config — replace with YOUR project's config
+// Get it from: https://console.firebase.google.com → Project Settings → Your apps → SDK setup
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDEMO_REPLACE_WITH_YOUR_KEY",
+  authDomain: "your-project.firebaseapp.com",
+  databaseURL: "https://your-project-default-rtdb.firebaseio.com",
+  projectId: "your-project",
+  storageBucket: "your-project.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abcdef"
+};
+
+/* ════════════════════════════════════════════
+   LEVELS — Add or edit stages here easily!
+   
+   Each stage:
+   {
+     id: unique string,
+     title: displayed title,
+     description: explanation of what to learn,
+     cheatsheet: array of { key, desc } hints,
+     startText: what appears in the editor,
+     task: what the player reads as their goal,
+     check(text): function that returns true if solved
+   }
+════════════════════════════════════════════ */
+
+const LEVELS = [
+  {
+    id: "stage-1",
+    title: "Enter the Editor",
+    description: "VIM starts in Normal mode. To type text, you need to enter Insert mode. Press <kbd>i</kbd> to insert before the cursor, or <kbd>a</kbd> to append after. Press <kbd>Esc</kbd> to return to Normal mode.",
+    cheatsheet: [
+      { key: "i", desc: "enter insert mode (before cursor)" },
+      { key: "a", desc: "enter insert mode (after cursor)" },
+      { key: "Esc", desc: "return to normal mode" },
+    ],
+    startText: "Hello, _____!",
+    task: `Replace <span class="target">_____</span> with <span class="target">World</span> so the text reads: <strong>Hello, World!</strong>`,
+    check: (text) => text.trim() === "Hello, World!"
+  },
+  {
+    id: "stage-2",
+    title: "Moving Around",
+    description: "In Normal mode, use <kbd>h</kbd> <kbd>j</kbd> <kbd>k</kbd> <kbd>l</kbd> to move left/down/up/right. Use <kbd>w</kbd> to jump forward a word, <kbd>b</kbd> to jump back. Try to navigate without arrow keys!",
+    cheatsheet: [
+      { key: "h / l", desc: "left / right" },
+      { key: "j / k", desc: "down / up" },
+      { key: "w", desc: "next word" },
+      { key: "b", desc: "previous word" },
+    ],
+    startText: `The quick brown fox\njumps over the lazy dog\nVIM is fast and efficient`,
+    task: `The third line says <span class="target">efficient</span>. Change it to <span class="target">powerful</span>. Navigate there using VIM keys (no arrow keys!), then edit.`,
+    check: (text) => text.includes("powerful") && !text.includes("efficient")
+  },
+  {
+    id: "stage-3",
+    title: "Delete Like a Pro",
+    description: "VIM's delete command is <kbd>d</kbd> followed by a motion. <kbd>dw</kbd> deletes a word, <kbd>d$</kbd> deletes to end of line, <kbd>dd</kbd> deletes the whole line. You can add a count: <kbd>d3w</kbd> deletes 3 words.",
+    cheatsheet: [
+      { key: "dw", desc: "delete word forward" },
+      { key: "dd", desc: "delete entire line" },
+      { key: "d$", desc: "delete to end of line" },
+      { key: "d3w", desc: "delete 3 words" },
+    ],
+    startText: `Keep this line safe\nDELETE DELETE DELETE this entire line\nThis line should stay too`,
+    task: `Delete the <span class="target">entire middle line</span> (the one with DELETE). The other two lines should remain untouched.`,
+    check: (text) => {
+      const lines = text.trim().split('\n').filter(l => l.trim());
+      return lines.length === 2 && !text.includes("DELETE");
+    }
+  },
+  {
+    id: "stage-4",
+    title: "The Motion Formula",
+    description: "The VIM motion formula is: <strong>action + count + motion</strong>. For example <kbd>d2w</kbd> deletes 2 words. Practice combining these for powerful editing in very few keystrokes.",
+    cheatsheet: [
+      { key: "d2w", desc: "delete 2 words" },
+      { key: "3dd", desc: "delete 3 lines" },
+      { key: "y$", desc: "yank to end of line" },
+      { key: "p", desc: "paste" },
+    ],
+    startText: `The cat sat on the the mat in the the garden`,
+    task: `Remove the <span class="target">duplicate words</span>: the two extra <strong>"the"</strong> instances. The result should read: <em>The cat sat on the mat in the garden</em>`,
+    check: (text) => text.trim() === "The cat sat on the mat in the garden"
+  },
+  {
+    id: "stage-5",
+    title: "Text Objects",
+    description: "Text objects let you select structured pieces of text. <kbd>i</kbd> means <em>inside</em>, <kbd>a</kbd> means <em>around</em>. Use them after <kbd>d</kbd>, <kbd>y</kbd>, or <kbd>v</kbd>: <kbd>diw</kbd> deletes inside word, <kbd>di\"</kbd> deletes inside quotes.",
+    cheatsheet: [
+      { key: "diw", desc: "delete inside word" },
+      { key: "di\"", desc: "delete inside quotes" },
+      { key: "ci(", desc: "change inside parens" },
+      { key: "yiw", desc: "yank inside word" },
+    ],
+    startText: `print("Hello, placeholder!")`,
+    task: `Change the text inside the quotes to <span class="target">VIM is awesome!</span>. Use <kbd>ci"</kbd> to change inside the double quotes.`,
+    check: (text) => text.trim() === `print("VIM is awesome!")`
+  }
+];
+
+/* ════════════════════════════════════════════
+   APP STATE
+════════════════════════════════════════════ */
+
+let state = {
+  user: null,       // { name, isAdmin }
+  currentStage: 0,
+  completedStages: [],
+  isFirebaseReady: false,
+  players: {},      // admin view: all player data
+};
+
+let db = null;
+let playerRef = null;
+
+/* ════════════════════════════════════════════
+   FIREBASE — graceful fallback to localStorage
+════════════════════════════════════════════ */
+
+async function initFirebase() {
+  try {
+    // Dynamically load Firebase
+    await loadScript("https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js");
+    await loadScript("https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js");
+
+    const isRealConfig = FIREBASE_CONFIG.apiKey !== "AIzaSyDEMO_REPLACE_WITH_YOUR_KEY";
+
+    if (isRealConfig) {
+      firebase.initializeApp(FIREBASE_CONFIG);
+      db = firebase.database();
+      state.isFirebaseReady = true;
+      console.log("✅ Firebase connected");
+    } else {
+      console.warn("⚠️ Firebase not configured — using localStorage fallback");
+    }
+  } catch (e) {
+    console.warn("Firebase load failed, using localStorage fallback", e);
+  }
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+/* ─ Write player progress ─ */
+function saveProgress() {
+  const data = {
+    name: state.user.name,
+    currentStage: state.currentStage,
+    completedStages: state.completedStages,
+    lastActive: Date.now(),
+    totalStages: LEVELS.length,
+  };
+  if (state.isFirebaseReady && playerRef) {
+    playerRef.set(data);
+  } else {
+    localStorage.setItem('vim_player_' + state.user.name, JSON.stringify(data));
+    // also write to shared list
+    const players = JSON.parse(localStorage.getItem('vim_all_players') || '{}');
+    players[state.user.name] = data;
+    localStorage.setItem('vim_all_players', JSON.stringify(players));
+  }
+}
+
+/* ─ Load player progress ─ */
+async function loadProgress(name) {
+  if (state.isFirebaseReady) {
+    const snap = await db.ref('players/' + sanitize(name)).get();
+    return snap.exists() ? snap.val() : null;
+  } else {
+    const raw = localStorage.getItem('vim_player_' + name);
+    return raw ? JSON.parse(raw) : null;
+  }
+}
+
+function sanitize(name) {
+  return name.replace(/[.#$[\]]/g, '_');
+}
+
+/* ─ Listen to all players (admin) ─ */
+function listenToAllPlayers(cb) {
+  if (state.isFirebaseReady) {
+    db.ref('players').on('value', snap => {
+      cb(snap.exists() ? snap.val() : {});
+    });
+  } else {
+    // Poll localStorage every 3s
+    const poll = () => {
+      const players = JSON.parse(localStorage.getItem('vim_all_players') || '{}');
+      cb(players);
+    };
+    poll();
+    setInterval(poll, 3000);
+  }
+}
+
+/* ─ Log admin activity ─ */
+function logActivity(playerName, msg) {
+  const entry = { time: Date.now(), player: playerName, msg };
+  if (state.isFirebaseReady) {
+    db.ref('activity').push(entry);
+  } else {
+    const log = JSON.parse(localStorage.getItem('vim_log') || '[]');
+    log.unshift(entry);
+    localStorage.setItem('vim_log', JSON.stringify(log.slice(0, 50)));
+  }
+}
+
+/* ════════════════════════════════════════════
+   AUTH / SCREENS
+════════════════════════════════════════════ */
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const target = document.getElementById(id);
+  if (target) target.classList.add('active');
+}
+
+function showAdminLogin() {
+  const s = document.getElementById('screen-admin-login');
+  s.classList.add('screen');
+  showScreen('screen-admin-login');
+}
+
+async function loginPlayer() {
+  const name = document.getElementById('login-name').value.trim();
+  if (!name) {
+    document.getElementById('login-error').style.display = 'block';
+    return;
+  }
+  document.getElementById('login-error').style.display = 'none';
+  state.user = { name, isAdmin: false };
+
+  // Load existing progress
+  const saved = await loadProgress(name);
+  if (saved) {
+    state.currentStage = saved.currentStage || 0;
+    state.completedStages = saved.completedStages || [];
+  }
+
+  if (state.isFirebaseReady) {
+    playerRef = db.ref('players/' + sanitize(name));
+  }
+
+  saveProgress();
+  logActivity(name, 'joined the workshop');
+
+  document.getElementById('header-player-name').textContent = name;
+  renderGame();
+  showScreen('screen-game');
+}
+
+function loginAdmin() {
+  const pass = document.getElementById('admin-pass').value;
+  if (pass !== ADMIN_PASSWORD) {
+    document.getElementById('admin-error').style.display = 'block';
+    return;
+  }
+  state.user = { name: 'Instructor', isAdmin: true };
+  renderAdmin();
+  showScreen('screen-admin');
+  startAdminClock();
+  listenToAllPlayers(updateAdminDashboard);
+}
+
+function logout() {
+  state.user = null;
+  state.currentStage = 0;
+  state.completedStages = [];
+  playerRef = null;
+  document.getElementById('login-name').value = '';
+  document.getElementById('admin-pass').value = '';
+  showScreen('screen-login');
+}
+
+/* ════════════════════════════════════════════
+   GAME RENDERING
+════════════════════════════════════════════ */
+
+function renderGame() {
+  renderStagePips();
+  renderStageList();
+  loadStage(state.currentStage);
+}
+
+function renderStagePips() {
+  const wrap = document.getElementById('stage-pips');
+  wrap.innerHTML = LEVELS.map((l, i) => {
+    let cls = '';
+    if (state.completedStages.includes(l.id)) cls = 'done';
+    else if (i === state.currentStage) cls = 'active';
+    return `<div class="stage-pip ${cls}" title="${l.title}"></div>`;
+  }).join('');
+}
+
+function renderStageList() {
+  const wrap = document.getElementById('tab-stages');
+  wrap.innerHTML = LEVELS.map((l, i) => {
+    const done = state.completedStages.includes(l.id);
+    const active = i === state.currentStage;
+    const locked = i > state.currentStage && !done;
+    const icon = done ? '✓' : active ? '▶' : locked ? '🔒' : '○';
+    return `
+      <div class="stage-item ${done?'completed':''} ${active?'active':''} ${locked?'locked':''}"
+           onclick="${locked ? '' : `loadStage(${i})`}">
+        <span class="stage-icon">${icon}</span>
+        <div>
+          <div style="font-size:.75rem;font-weight:700">Stage ${i+1}</div>
+          <div style="font-size:.68rem;color:var(--muted)">${l.title}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function loadStage(index) {
+  state.currentStage = index;
+  const level = LEVELS[index];
+  const area = document.getElementById('vim-area');
+
+  area.innerHTML = `
+    <div class="stage-header">
+      <div class="stage-num">0${index + 1}</div>
+      <div>
+        <div class="stage-title">${level.title}</div>
+        <div class="stage-desc">${level.description}</div>
+      </div>
+    </div>
+
+    <div class="cheatsheet">
+      <div class="cs-title">💡 Keys for this stage</div>
+      ${level.cheatsheet.map(c => `<div><span class="key">${c.key}</span> — ${c.desc}</div>`).join('')}
+    </div>
+
+    <div class="task-box">
+      <div class="task-label">Your Task</div>
+      <div class="task-goal">${level.task}</div>
+      <button class="check-btn" onclick="checkStage()">Check Answer ↵</button>
+      <div class="feedback" id="stage-feedback"></div>
+    </div>
+
+    <div class="vim-editor-wrap" id="vim-wrap" data-mode="NORMAL">
+      <textarea id="vim-editor" spellcheck="false">${level.startText}</textarea>
+    </div>
+  `;
+
+  // Mode display update (cosmetic — it's a textarea not real VIM)
+  const editor = document.getElementById('vim-editor');
+  editor.addEventListener('focus', () => document.getElementById('vim-wrap').setAttribute('data-mode', '-- INSERT --'));
+  editor.addEventListener('blur', () => document.getElementById('vim-wrap').setAttribute('data-mode', 'NORMAL'));
+
+  renderStagePips();
+  renderStageList();
+}
+
+function checkStage() {
+  const level = LEVELS[state.currentStage];
+  const text = document.getElementById('vim-editor').value;
+  const feedback = document.getElementById('stage-feedback');
+
+  if (level.check(text)) {
+    feedback.className = 'feedback success';
+    feedback.textContent = '✓ Correct! Well done.';
+    feedback.style.display = 'block';
+
+    if (!state.completedStages.includes(level.id)) {
+      state.completedStages.push(level.id);
+    }
+
+    saveProgress();
+    logActivity(state.user.name, `completed Stage ${state.currentStage + 1}: ${level.title}`);
+
+    setTimeout(() => {
+      showWinner(level.title, state.currentStage + 1 < LEVELS.length);
+    }, 400);
+  } else {
+    feedback.className = 'feedback fail';
+    feedback.textContent = '✗ Not quite — check the task description and try again.';
+    feedback.style.display = 'block';
+  }
+}
+
+function showWinner(title, hasNext) {
+  const overlay = document.getElementById('winner-overlay');
+  overlay.querySelector('.winner-title').textContent = hasNext ? '🎉 Stage Clear!' : '🏆 All Done!';
+  document.getElementById('winner-msg').textContent = hasNext
+    ? `"${title}" complete. Ready for the next challenge?`
+    : `You've completed all stages. You're a VIM ninja! 🥷`;
+  overlay.classList.add('show');
+}
+
+function dismissWinner() {
+  document.getElementById('winner-overlay').classList.remove('show');
+  if (state.currentStage + 1 < LEVELS.length) {
+    state.currentStage++;
+    saveProgress();
+    loadStage(state.currentStage);
+    renderStagePips();
+    renderStageList();
+  }
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+/* ════════════════════════════════════════════
+   ADMIN DASHBOARD
+════════════════════════════════════════════ */
+
+function renderAdmin() {
+  document.getElementById('stat-stages').textContent = LEVELS.length;
+}
+
+function updateAdminDashboard(players) {
+  state.players = players;
+  const list = Object.values(players);
+
+  // Stats
+  document.getElementById('stat-players').textContent = list.length;
+  const fiveMin = Date.now() - 5 * 60 * 1000;
+  document.getElementById('stat-active').textContent = list.filter(p => p.lastActive > fiveMin).length;
+  document.getElementById('stat-completed').textContent = list.filter(p =>
+    p.completedStages && p.completedStages.length === LEVELS.length
+  ).length;
+
+  // Sidebar cards
+  const cardWrap = document.getElementById('admin-player-list');
+  cardWrap.innerHTML = list.length === 0
+    ? `<div style="color:var(--muted);font-size:.75rem">No players yet...</div>`
+    : list.map(p => {
+        const active = p.lastActive > fiveMin;
+        const stageNum = (p.currentStage || 0) + 1;
+        return `<div class="player-card" onclick="focusPlayer('${p.name}')">
+          <div class="pc-name">${active ? '<span class="online-dot"></span>' : ''}${p.name}</div>
+          <div class="pc-meta">${p.completedStages?.length || 0}/${LEVELS.length} stages done</div>
+          <div class="pc-stage">S${stageNum}</div>
+        </div>`;
+      }).join('');
+
+  // Table
+  const tbody = document.getElementById('admin-table-body');
+  tbody.innerHTML = list.length === 0
+    ? `<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:2rem">Waiting for players to join...</td></tr>`
+    : list.sort((a,b) => (b.completedStages?.length||0) - (a.completedStages?.length||0))
+        .map(p => {
+          const done = p.completedStages?.length || 0;
+          const pct = Math.round((done / LEVELS.length) * 100);
+          const active = p.lastActive > fiveMin;
+          const statusBadge = p.completedStages?.length === LEVELS.length
+            ? '<span class="badge badge-green">Done</span>'
+            : active
+            ? '<span class="badge badge-blue">Active</span>'
+            : '<span class="badge badge-red">Idle</span>';
+          const ago = timeAgo(p.lastActive);
+          const stageName = LEVELS[p.currentStage]?.title || '—';
+          return `<tr>
+            <td style="font-weight:700">${p.name}</td>
+            <td><span style="color:var(--accent2)">S${(p.currentStage||0)+1}</span> <span style="color:var(--muted);font-size:.7rem">${stageName}</span></td>
+            <td>
+              <div style="display:flex;align-items:center;gap:.5rem">
+                <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+                <span style="font-size:.7rem;color:var(--muted)">${pct}%</span>
+              </div>
+            </td>
+            <td>${statusBadge}</td>
+            <td style="color:var(--muted);font-size:.72rem">${ago}</td>
+          </tr>`;
+        }).join('');
+
+  // Live log
+  updateLiveLog();
+}
+
+function updateLiveLog() {
+  const wrap = document.getElementById('live-log-entries');
+  if (state.isFirebaseReady) {
+    db.ref('activity').orderByChild('time').limitToLast(20).on('value', snap => {
+      const entries = [];
+      snap.forEach(c => entries.unshift(c.val()));
+      renderLog(wrap, entries);
+    });
+  } else {
+    const log = JSON.parse(localStorage.getItem('vim_log') || '[]');
+    renderLog(wrap, log);
+  }
+}
+
+function renderLog(wrap, entries) {
+  wrap.innerHTML = entries.length === 0
+    ? `<div style="color:var(--muted);font-size:.75rem">No activity yet</div>`
+    : entries.map(e => `
+        <div class="log-entry">
+          <span class="log-time">${new Date(e.time).toLocaleTimeString()}</span>
+          <span class="log-player">${e.player}</span>
+          <span class="log-msg">${e.msg}</span>
+        </div>`).join('');
+}
+
+function focusPlayer(name) {
+  document.querySelectorAll('.player-card').forEach(c => c.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+}
+
+function refreshAdmin() {
+  const players = state.isFirebaseReady ? null : JSON.parse(localStorage.getItem('vim_all_players') || '{}');
+  if (players) updateAdminDashboard(players);
+  showToast('↻ Refreshed');
+}
+
+function startAdminClock() {
+  const el = document.getElementById('admin-clock');
+  const tick = () => {
+    el.textContent = new Date().toLocaleTimeString();
+  };
+  tick();
+  setInterval(tick, 1000);
+}
+
+function timeAgo(ts) {
+  const diff = Math.floor((Date.now() - ts) / 1000);
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+  return `${Math.floor(diff/3600)}h ago`;
+}
+
+/* ════════════════════════════════════════════
+   TOAST
+════════════════════════════════════════════ */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+/* ════════════════════════════════════════════
+   BOOT
+════════════════════════════════════════════ */
+initFirebase().then(() => {
+  console.log("VIM in Motion ready");
+});
+</script>
+</body>
+</html>
