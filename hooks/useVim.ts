@@ -163,6 +163,8 @@ export function useVim(initialText: string, onWq?: (finalText: string) => void, 
         if (commandText === "wq" && onWq) {
           onWq(text);
         } else if (commandText === "q" || commandText === "q!") {
+          setText(initialText);
+          setHistoryLine([initialText]);
           if (onQuit) {
             onQuit();
           } else if (onWq) {

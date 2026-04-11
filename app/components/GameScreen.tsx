@@ -26,7 +26,9 @@ export default function GameScreen({ user, currentStage, completedStages, adminU
     description: "Documentation file.",
     cheatsheet: [ {key: ":q", desc: "Quit editor"} ],
     task: "Read the documentation. Type <code>:q</code> and press Enter to return.",
-    startText: `#+title: VIM in Motion\n\n* Modes\n- It\`s a Modal text editor, where each mode changes what your keys do.\n- Your keys don\`t just type, they also serve as different ways of interacting with text through keybinds.\n- In VIM, there are 3 modes.\n** Normal Mode (default)\n- This is where you navigate and edit\n- Keys do actions, not typing\n** Insert Mode\n- This is where you actually type text\nPress ~Esc~ to go back to Normal mode`,
+    startText: openedReadme === "README.md" 
+      ? `# VIM in Motion\n\n## Modes\n- It\`s a Modal text editor, where each mode changes what your keys do.\n- Your keys don\`t just type, they also serve as different ways of interacting with text through keybinds.\n- In VIM, there are 3 modes.\n### Normal Mode (default)\n- This is where you navigate and edit\n- Keys do actions, not typing\n### Insert Mode\n- This is where you actually type text\nPress \`Esc\` to go back to Normal mode`
+      : `#+title: VIM in Motion\n\n* Modes\n- It\`s a Modal text editor, where each mode changes what your keys do.\n- Your keys don\`t just type, they also serve as different ways of interacting with text through keybinds.\n- In VIM, there are 3 modes.\n** Normal Mode (default)\n- This is where you navigate and edit\n- Keys do actions, not typing\n** Insert Mode\n- This is where you actually type text\nPress ~Esc~ to go back to Normal mode`,
     check: (text: string) => false, // No winning condition
   };
 
@@ -72,7 +74,7 @@ export default function GameScreen({ user, currentStage, completedStages, adminU
     handleTerminalKeyDown,
     autocompleteOptions,
     autocompleteIndex,
-  } = useTerminal(user, completedStages, (filename) => {
+  } = useTerminal(user, completedStages, adminUnlockedStageLimit, (filename) => {
     if (filename === "README.md" || filename === "README.org") {
       setOpenedReadme(filename);
     } else {
@@ -205,7 +207,7 @@ export default function GameScreen({ user, currentStage, completedStages, adminU
           {isTerminal ? (
             <div className="terminal-container" style={{ flex: 1, padding: "1rem", backgroundColor: "#1e1e1e", color: "#d4d4d4", fontFamily: "monospace", overflowY: "auto", display: "flex", flexDirection: "column" }}>
               {history.map((line, i) => {
-                if (line.includes("$ ")) {
+                if (typeof line === "string" && line.includes("$ ")) {
                   const parts = line.split("$ ");
                   return (
                     <div key={i} style={{ display: "flex", alignItems: "center", minHeight: "1.5rem" }}>
