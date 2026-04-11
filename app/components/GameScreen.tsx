@@ -98,7 +98,7 @@ export default function GameScreen({ user, currentStage, completedStages, adminU
 
   const handleKeyDownInterceptor = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Stage 2 (index 1) arrow key blocking
-    if (currentStage === 1 && vim.mode === "NORMAL" && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+    if (!openedReadme && currentStage === 1 && vim.mode === "NORMAL" && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
       e.preventDefault();
       setShowNoArrows(true);
       setTimeout(() => setShowNoArrows(false), 2000);
