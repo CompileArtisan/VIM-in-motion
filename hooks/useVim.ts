@@ -305,7 +305,7 @@ export function useVim(initialText: string, onWq?: (finalText: string) => void, 
     }
 
     // action + count + motion : e.g. d3w, y$ 
-    const actionMotionMatch = buf.match(/^([dyv])(\d*)([hjklwbe$0])$/);
+    const actionMotionMatch = buf.match(/^([dyvc])(\d*)([hjklwbe$0])$/);
     if (actionMotionMatch) {
       const action = actionMotionMatch[1];
       const count = actionMotionMatch[2] ? parseInt(actionMotionMatch[2], 10) : 1;
@@ -321,9 +321,10 @@ export function useVim(initialText: string, onWq?: (finalText: string) => void, 
           setCursor({ start, end });
         } else {
           clipboardRef.current = text.slice(start, end);
-          if (action === "d") {
+          if (action === "d" || action === "c") {
             commitHistory(text.slice(0, start) + text.slice(end));
             updateCursor(start);
+            if (action === "c") setMode("INSERT");
           }
         }
       }
@@ -332,7 +333,7 @@ export function useVim(initialText: string, onWq?: (finalText: string) => void, 
     }
 
     // action + i/a + object : e.g. diw, vit, ya"
-    const actionObjectMatch = buf.match(/^([dyv])([ia])([w()"'t])$/);
+    const actionObjectMatch = buf.match(/^([dyvc])([ia])([w()"'t])$/);
     if (actionObjectMatch) {
       const action = actionObjectMatch[1];
       const modifier = actionObjectMatch[2] as "i" | "a";
@@ -346,9 +347,10 @@ export function useVim(initialText: string, onWq?: (finalText: string) => void, 
           setCursor({ start, end });
         } else {
           clipboardRef.current = text.slice(start, end);
-          if (action === "d") {
+          if (action === "d" || action === "c") {
             commitHistory(text.slice(0, start) + text.slice(end));
             updateCursor(start);
+            if (action === "c") setMode("INSERT");
           }
         }
       }
@@ -356,8 +358,8 @@ export function useVim(initialText: string, onWq?: (finalText: string) => void, 
       return;
     }
 
-    // Two-key same-action e.g. dd, yy
-    const doubleMatch = buf.match(/^([dy])\1$/);
+    // Two-key same-action e.g. dd, yy, cc
+    const doubleMatch = buf.match(/^([dyc])\1$/);
     if (doubleMatch) {
       const action = doubleMatch[1];
       const info = getLineInfo(cursor.start);
@@ -365,9 +367,10 @@ export function useVim(initialText: string, onWq?: (finalText: string) => void, 
       const end = info.lineEnd + (text[info.lineEnd] === '\n' ? 1 : 0);
       clipboardRef.current = text.slice(info.lineStart, end);
       
-      if (action === "d") {
+      if (action === "d" || action === "c") {
         commitHistory(text.slice(0, info.lineStart) + text.slice(end));
         updateCursor(info.lineStart);
+        if (action === "c") setMode("INSERT");
       }
       bufferRef.current = "";
       return;
@@ -375,7 +378,7 @@ export function useVim(initialText: string, onWq?: (finalText: string) => void, 
 
     // If buffer length is growing too long and doesn't match anything 
     // Wait... what if it's "d3" waiting for "w"?
-    const partialMatch = /^[dyv]?\d*[ia]?[w()"'t]?$/.test(buf);
+    const partialMatch = /^[dyvc]?\d*[ia]?[w()"'t]?$/.test(buf);
     if (!partialMatch && buf.length > 0) {
       bufferRef.current = ""; // Reset since it's an invalid phrase
     }
