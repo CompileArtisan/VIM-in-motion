@@ -1005,18 +1005,23 @@ __turbopack_context__.s([
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/ssr/react.js [app-ssr] (ecmascript)");
 ;
-function useVim(initialText) {
+function useVim(initialText, onWq, onQuit) {
     const [text, setText] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(initialText);
     const [mode, setMode] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])("NORMAL");
+    const [commandText, setCommandText] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])("");
     const [cursor, setCursor] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])({
         start: 0,
         end: 0
     });
+    const [historyLine, setHistoryLine] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])([]);
     const textareaRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
     const bufferRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])("");
     const clipboardRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])("");
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
         setText(initialText);
+        setHistoryLine([
+            initialText
+        ]);
         setMode("NORMAL");
         setCursor({
             start: 0,
@@ -1026,6 +1031,13 @@ function useVim(initialText) {
     }, [
         initialText
     ]);
+    const commitHistory = (newText)=>{
+        setText(newText);
+        setHistoryLine((prev)=>[
+                ...prev,
+                newText
+            ]);
+    };
     // Sync cursor visually
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
         if (textareaRef.current) {
@@ -1192,10 +1204,51 @@ function useVim(initialText) {
     };
     const handleKeyDown = (e)=>{
         let key = e.key;
+        if (mode === "COMMAND") {
+            e.preventDefault();
+            if (key === "Escape") {
+                setMode("NORMAL");
+                setCommandText("");
+                return;
+            }
+            if (key === "Enter") {
+                if (commandText === "wq" && onWq) {
+                    onWq(text);
+                } else if (commandText === "q" || commandText === "q!") {
+                    setText(initialText);
+                    setHistoryLine([
+                        initialText
+                    ]);
+                    if (onQuit) {
+                        onQuit();
+                    } else if (onWq) {
+                        onWq(initialText); // or cancel it out entirely without saving
+                    }
+                }
+                setMode("NORMAL");
+                setCommandText("");
+                return;
+            }
+            if (key === "Backspace") {
+                setCommandText((prev)=>{
+                    if (prev.length === 0) {
+                        setMode("NORMAL");
+                        return "";
+                    }
+                    return prev.slice(0, -1);
+                });
+                return;
+            }
+            if (key.length === 1) {
+                setCommandText((prev)=>prev + key);
+            }
+            return;
+        }
         if (mode === "INSERT") {
             if (key === "Escape") {
                 e.preventDefault();
                 setMode("NORMAL");
+                commitHistory(text); // commit the typed text change into history for undo
                 updateCursor(Math.max(0, cursor.start - 1));
             }
             return;
@@ -1224,6 +1277,12 @@ function useVim(initialText) {
             "ArrowLeft",
             "ArrowRight"
         ].includes(key)) return;
+        if (key === ":") {
+            setMode("COMMAND");
+            setCommandText("");
+            bufferRef.current = "";
+            return;
+        }
         bufferRef.current += key;
         const buf = bufferRef.current;
         // VISUAL MODE
@@ -1235,7 +1294,7 @@ function useVim(initialText) {
                     clipboardRef.current = text.slice(start, end);
                 } else {
                     clipboardRef.current = text.slice(start, end);
-                    setText(text.slice(0, start) + text.slice(end));
+                    commitHistory(text.slice(0, start) + text.slice(end));
                 }
                 setMode("NORMAL");
                 updateCursor(start);
@@ -1275,8 +1334,14 @@ function useVim(initialText) {
                 });
             } else if (buf === "p") {
                 const paste = clipboardRef.current;
-                setText(text.slice(0, cursor.start + 1) + paste + text.slice(cursor.start + 1));
+                commitHistory(text.slice(0, cursor.start + 1) + paste + text.slice(cursor.start + 1));
                 updateCursor(cursor.start + 1 + paste.length);
+            } else if (buf === "u") {
+                if (historyLine.length > 1) {
+                    const newHistory = historyLine.slice(0, -1);
+                    setHistoryLine(newHistory);
+                    setText(newHistory[newHistory.length - 1]);
+                }
             }
             bufferRef.current = "";
             return;
@@ -1317,7 +1382,7 @@ function useVim(initialText) {
                 } else {
                     clipboardRef.current = text.slice(start, end);
                     if (action === "d") {
-                        setText(text.slice(0, start) + text.slice(end));
+                        commitHistory(text.slice(0, start) + text.slice(end));
                         updateCursor(start);
                     }
                 }
@@ -1343,7 +1408,7 @@ function useVim(initialText) {
                 } else {
                     clipboardRef.current = text.slice(start, end);
                     if (action === "d") {
-                        setText(text.slice(0, start) + text.slice(end));
+                        commitHistory(text.slice(0, start) + text.slice(end));
                         updateCursor(start);
                     }
                 }
@@ -1360,7 +1425,7 @@ function useVim(initialText) {
             const end = info.lineEnd + (text[info.lineEnd] === '\n' ? 1 : 0);
             clipboardRef.current = text.slice(info.lineStart, end);
             if (action === "d") {
-                setText(text.slice(0, info.lineStart) + text.slice(end));
+                commitHistory(text.slice(0, info.lineStart) + text.slice(end));
                 updateCursor(info.lineStart);
             }
             bufferRef.current = "";
@@ -1393,6 +1458,7 @@ function useVim(initialText) {
     return {
         text,
         mode,
+        commandText,
         cursor,
         textareaRef,
         handleKeyDown,
@@ -1412,12 +1478,17 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/ssr/react.js [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$levels$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/levels.ts [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$hooks$2f$useVim$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/hooks/useVim.ts [app-ssr] (ecmascript)");
+(()=>{
+    const e = new Error("Cannot find module '../../hooks/useTerminal'");
+    e.code = 'MODULE_NOT_FOUND';
+    throw e;
+})();
+;
 ;
 ;
 ;
 ;
 function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLimit, onProgress, logActivity, onLogout }) {
-    const [activeTab, setActiveTab] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])("stages");
     const [feedback, setFeedback] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(null);
     const [showWinner, setShowWinner] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
     const [scrollPosition, setScrollPosition] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])({
@@ -1425,9 +1496,67 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
         scrollLeft: 0
     });
     const [showNoArrows, setShowNoArrows] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
-    const level = __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$levels$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["LEVELS"][currentStage];
+    const [openedReadme, setOpenedReadme] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(null);
+    const readmeLevel = {
+        id: "readme",
+        title: openedReadme || "README",
+        description: "Documentation file.",
+        cheatsheet: [
+            {
+                key: ":q",
+                desc: "Quit editor"
+            }
+        ],
+        task: "Read the documentation. Type <code>:q</code> and press Enter to return.",
+        startText: openedReadme === "README.md" ? `# VIM in Motion\n\n## Modes\n- It\`s a Modal text editor, where each mode changes what your keys do.\n- Your keys don\`t just type, they also serve as different ways of interacting with text through keybinds.\n- In VIM, there are 3 modes.\n### Normal Mode (default)\n- This is where you navigate and edit\n- Keys do actions, not typing\n### Insert Mode\n- This is where you actually type text\nPress \`Esc\` to go back to Normal mode` : `#+title: VIM in Motion\n\n* Modes\n- It\`s a Modal text editor, where each mode changes what your keys do.\n- Your keys don\`t just type, they also serve as different ways of interacting with text through keybinds.\n- In VIM, there are 3 modes.\n** Normal Mode (default)\n- This is where you navigate and edit\n- Keys do actions, not typing\n** Insert Mode\n- This is where you actually type text\nPress ~Esc~ to go back to Normal mode`,
+        check: (text)=>false
+    };
+    const level = openedReadme ? readmeLevel : __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$levels$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["LEVELS"][currentStage];
+    const handleCheck = (finalText)=>{
+        if (!level) return;
+        if (openedReadme) {
+            setIsTerminal(true);
+            return;
+        }
+        const isPass = level.check(finalText);
+        if (isPass) {
+            setFeedback({
+                type: "success",
+                msg: "✓ Correct! Well done."
+            });
+            const newCompleted = [
+                ...completedStages
+            ];
+            if (!newCompleted.includes(level.id)) {
+                newCompleted.push(level.id);
+            }
+            logActivity(`completed Stage ${currentStage + 1}: ${level.title}`);
+            onProgress(currentStage, newCompleted);
+            setTimeout(()=>setShowWinner(true), 400);
+        } else {
+            setFeedback({
+                type: "fail",
+                msg: "✗ Not quite — check the task description and try again."
+            });
+        }
+    };
     // Initialize VIM Engine
-    const vim = (0, __TURBOPACK__imported__module__$5b$project$5d2f$hooks$2f$useVim$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useVim"])(level ? level.startText : "");
+    const vim = (0, __TURBOPACK__imported__module__$5b$project$5d2f$hooks$2f$useVim$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useVim"])(level ? level.startText : "", handleCheck, ()=>setIsTerminal(true));
+    // Initialize Terminal
+    const { history, currentInput, setCurrentInput, cwd, isTerminal, setIsTerminal, handleTerminalKeyDown, autocompleteOptions, autocompleteIndex } = useTerminal(user, completedStages, adminUnlockedStageLimit, (filename)=>{
+        if (filename === "README.md" || filename === "README.org") {
+            setOpenedReadme(filename);
+        } else {
+            setOpenedReadme(null);
+            const stageIdMatch = filename.match(/stage-(\d+)\.level/);
+            if (stageIdMatch) {
+                const stageIndex = parseInt(stageIdMatch[1], 10) - 1;
+                if (!isNaN(stageIndex) && stageIndex >= 0 && stageIndex < __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$levels$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["LEVELS"].length) {
+                    onProgress(stageIndex, completedStages);
+                }
+            }
+        }
+    });
     const handleScroll = (e)=>{
         setScrollPosition({
             scrollTop: e.currentTarget.scrollTop,
@@ -1470,7 +1599,7 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                                 children: " "
                             }, void 0, false, {
                                 fileName: "[project]/app/components/GameScreen.tsx",
-                                lineNumber: 63,
+                                lineNumber: 128,
                                 columnNumber: 15
                             }, this),
                             "\n"
@@ -1480,7 +1609,7 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                         children: char
                     }, void 0, false, {
                         fileName: "[project]/app/components/GameScreen.tsx",
-                        lineNumber: 65,
+                        lineNumber: 130,
                         columnNumber: 13
                     }, this),
                     after
@@ -1500,7 +1629,7 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                         children: selectedBody
                     }, void 0, false, {
                         fileName: "[project]/app/components/GameScreen.tsx",
-                        lineNumber: 80,
+                        lineNumber: 145,
                         columnNumber: 11
                     }, this),
                     cursorChar === "\n" ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Fragment"], {
@@ -1510,7 +1639,7 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                                 children: " "
                             }, void 0, false, {
                                 fileName: "[project]/app/components/GameScreen.tsx",
-                                lineNumber: 82,
+                                lineNumber: 147,
                                 columnNumber: 15
                             }, this),
                             "\n"
@@ -1520,7 +1649,7 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                         children: cursorChar
                     }, void 0, false, {
                         fileName: "[project]/app/components/GameScreen.tsx",
-                        lineNumber: 84,
+                        lineNumber: 149,
                         columnNumber: 13
                     }, this),
                     after
@@ -1533,39 +1662,16 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
         if (level) {
             setFeedback(null);
             // Auto-focus editor on stage load
-            if (vim.textareaRef.current) {
+            if (vim.textareaRef.current && !isTerminal) {
                 vim.textareaRef.current.focus();
             }
         }
     }, [
         currentStage,
         level,
-        vim.textareaRef
+        vim.textareaRef,
+        isTerminal
     ]);
-    const handleCheck = ()=>{
-        if (!level) return;
-        const isPass = level.check(vim.text);
-        if (isPass) {
-            setFeedback({
-                type: "success",
-                msg: "✓ Correct! Well done."
-            });
-            const newCompleted = [
-                ...completedStages
-            ];
-            if (!newCompleted.includes(level.id)) {
-                newCompleted.push(level.id);
-            }
-            logActivity(`completed Stage ${currentStage + 1}: ${level.title}`);
-            onProgress(currentStage, newCompleted);
-            setTimeout(()=>setShowWinner(true), 400);
-        } else {
-            setFeedback({
-                type: "fail",
-                msg: "✗ Not quite — check the task description and try again."
-            });
-        }
-    };
     const handleDismissWinner = ()=>{
         setShowWinner(false);
         // Attempt to automatically go to the next stage, but respect locks
@@ -1577,6 +1683,8 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                 onProgress(nextStage, completedStages);
             }
         }
+        // After dismissing, return to the terminal
+        setIsTerminal(true);
     };
     if (!level) return null;
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1591,22 +1699,7 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                         children: "VIM ▸ Motion"
                     }, void 0, false, {
                         fileName: "[project]/app/components/GameScreen.tsx",
-                        lineNumber: 145,
-                        columnNumber: 9
-                    }, this),
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                        className: "stage-progress",
-                        children: __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$levels$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["LEVELS"].map((l, i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                className: `stage-pip ${completedStages.includes(l.id) ? "done" : ""} ${i === currentStage ? "active" : ""}`,
-                                title: l.title
-                            }, l.id, false, {
-                                fileName: "[project]/app/components/GameScreen.tsx",
-                                lineNumber: 148,
-                                columnNumber: 13
-                            }, this))
-                    }, void 0, false, {
-                        fileName: "[project]/app/components/GameScreen.tsx",
-                        lineNumber: 146,
+                        lineNumber: 192,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1616,7 +1709,7 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                                 children: "playing as"
                             }, void 0, false, {
                                 fileName: "[project]/app/components/GameScreen.tsx",
-                                lineNumber: 156,
+                                lineNumber: 194,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1624,7 +1717,7 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                                 children: user.name
                             }, void 0, false, {
                                 fileName: "[project]/app/components/GameScreen.tsx",
-                                lineNumber: 157,
+                                lineNumber: 195,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -1637,311 +1730,418 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                                 children: "exit"
                             }, void 0, false, {
                                 fileName: "[project]/app/components/GameScreen.tsx",
-                                lineNumber: 158,
+                                lineNumber: 196,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/app/components/GameScreen.tsx",
-                        lineNumber: 155,
+                        lineNumber: 193,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/components/GameScreen.tsx",
-                lineNumber: 144,
+                lineNumber: 191,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                className: "game-body",
+                className: `game-body ${isTerminal ? 'terminal-mode' : ''}`,
                 children: [
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                         className: `no-arrows-popup ${showNoArrows ? 'show' : ''}`,
                         children: "I said, no arrow keys!"
                     }, void 0, false, {
                         fileName: "[project]/app/components/GameScreen.tsx",
-                        lineNumber: 163,
+                        lineNumber: 201,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                         className: "vim-area",
-                        children: [
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                className: "stage-header",
-                                children: [
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                        className: "stage-num",
-                                        children: [
-                                            "0",
-                                            currentStage + 1
-                                        ]
-                                    }, void 0, true, {
-                                        fileName: "[project]/app/components/GameScreen.tsx",
-                                        lineNumber: 169,
-                                        columnNumber: 13
-                                    }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                        children: [
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                className: "stage-title",
-                                                children: level.title
-                                            }, void 0, false, {
-                                                fileName: "[project]/app/components/GameScreen.tsx",
-                                                lineNumber: 171,
-                                                columnNumber: 15
-                                            }, this),
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                className: "stage-desc",
-                                                dangerouslySetInnerHTML: {
-                                                    __html: level.description
-                                                }
-                                            }, void 0, false, {
-                                                fileName: "[project]/app/components/GameScreen.tsx",
-                                                lineNumber: 172,
-                                                columnNumber: 15
-                                            }, this)
-                                        ]
-                                    }, void 0, true, {
-                                        fileName: "[project]/app/components/GameScreen.tsx",
-                                        lineNumber: 170,
-                                        columnNumber: 13
-                                    }, this)
-                                ]
-                            }, void 0, true, {
-                                fileName: "[project]/app/components/GameScreen.tsx",
-                                lineNumber: 168,
-                                columnNumber: 11
-                            }, this),
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                className: "cheatsheet",
-                                children: [
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                        className: "cs-title",
-                                        children: "💡 Keys for this stage"
-                                    }, void 0, false, {
-                                        fileName: "[project]/app/components/GameScreen.tsx",
-                                        lineNumber: 177,
-                                        columnNumber: 13
-                                    }, this),
-                                    level.cheatsheet.map((c, i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        children: isTerminal ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                            className: "terminal-container",
+                            style: {
+                                flex: 1,
+                                padding: "1rem",
+                                backgroundColor: "#1e1e1e",
+                                color: "#d4d4d4",
+                                fontFamily: "monospace",
+                                overflowY: "auto",
+                                display: "flex",
+                                flexDirection: "column"
+                            },
+                            children: [
+                                history.map((line, i)=>{
+                                    if (typeof line === "string" && line.includes("$ ")) {
+                                        const parts = line.split("$ ");
+                                        return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                            style: {
+                                                display: "flex",
+                                                alignItems: "center",
+                                                minHeight: "1.5rem"
+                                            },
                                             children: [
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                    className: "key",
-                                                    children: c.key
+                                                    style: {
+                                                        marginRight: "0.5rem",
+                                                        color: "#4af626",
+                                                        fontSize: "1rem"
+                                                    },
+                                                    children: [
+                                                        parts[0],
+                                                        "$"
+                                                    ]
+                                                }, void 0, true, {
+                                                    fileName: "[project]/app/components/GameScreen.tsx",
+                                                    lineNumber: 214,
+                                                    columnNumber: 23
+                                                }, this),
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                    style: {
+                                                        flex: 1,
+                                                        fontFamily: "inherit",
+                                                        fontSize: "1rem",
+                                                        whiteSpace: "pre-wrap"
+                                                    },
+                                                    children: parts.slice(1).join("$ ")
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/components/GameScreen.tsx",
-                                                    lineNumber: 179,
-                                                    columnNumber: 29
-                                                }, this),
-                                                " — ",
-                                                c.desc
+                                                    lineNumber: 215,
+                                                    columnNumber: 23
+                                                }, this)
                                             ]
                                         }, i, true, {
                                             fileName: "[project]/app/components/GameScreen.tsx",
-                                            lineNumber: 179,
-                                            columnNumber: 16
-                                        }, this))
-                                ]
-                            }, void 0, true, {
-                                fileName: "[project]/app/components/GameScreen.tsx",
-                                lineNumber: 176,
-                                columnNumber: 11
-                            }, this),
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                className: "task-box",
-                                children: [
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                        className: "task-label",
-                                        children: "Your Task"
-                                    }, void 0, false, {
-                                        fileName: "[project]/app/components/GameScreen.tsx",
-                                        lineNumber: 184,
-                                        columnNumber: 13
-                                    }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                        className: "task-goal",
-                                        dangerouslySetInnerHTML: {
-                                            __html: level.task
-                                        }
-                                    }, void 0, false, {
-                                        fileName: "[project]/app/components/GameScreen.tsx",
-                                        lineNumber: 185,
-                                        columnNumber: 13
-                                    }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
-                                        className: "check-btn",
-                                        onClick: handleCheck,
-                                        children: "Check Answer ↵"
-                                    }, void 0, false, {
-                                        fileName: "[project]/app/components/GameScreen.tsx",
-                                        lineNumber: 186,
-                                        columnNumber: 13
-                                    }, this),
-                                    feedback && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                        className: `feedback ${feedback.type}`,
+                                            lineNumber: 213,
+                                            columnNumber: 21
+                                        }, this);
+                                    }
+                                    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                         style: {
-                                            display: 'block'
+                                            whiteSpace: "pre-wrap",
+                                            fontSize: "1rem",
+                                            minHeight: "1.5rem",
+                                            display: "flex",
+                                            alignItems: "center"
                                         },
-                                        children: feedback.msg
-                                    }, void 0, false, {
+                                        children: line
+                                    }, i, false, {
                                         fileName: "[project]/app/components/GameScreen.tsx",
-                                        lineNumber: 188,
-                                        columnNumber: 15
-                                    }, this)
-                                ]
-                            }, void 0, true, {
-                                fileName: "[project]/app/components/GameScreen.tsx",
-                                lineNumber: 183,
-                                columnNumber: 11
-                            }, this),
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                className: "vim-editor-wrap",
-                                "data-mode": vim.mode === "NORMAL" ? "NORMAL" : "-- " + vim.mode + " --",
-                                children: [
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                        className: "vim-editor-overlay",
-                                        style: {
-                                            transform: `translate(${-scrollPosition.scrollLeft}px, ${-scrollPosition.scrollTop}px)`,
-                                            marginBottom: `-${scrollPosition.scrollTop}px`,
-                                            display: vim.mode === 'INSERT' ? 'none' : 'block'
-                                        },
-                                        children: renderVimOverlay()
-                                    }, void 0, false, {
-                                        fileName: "[project]/app/components/GameScreen.tsx",
-                                        lineNumber: 195,
-                                        columnNumber: 13
-                                    }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("textarea", {
-                                        id: "vim-editor",
-                                        ref: vim.textareaRef,
-                                        spellCheck: false,
-                                        value: vim.text,
-                                        onChange: vim.handleChange,
-                                        onScroll: handleScroll,
-                                        onKeyDown: handleKeyDownInterceptor,
-                                        onSelect: vim.handleSelect,
-                                        onClick: vim.handleSelect,
-                                        onKeyUp: vim.handleSelect,
-                                        style: {
-                                            color: vim.mode !== "INSERT" ? "transparent" : "var(--text)",
-                                            caretColor: vim.mode !== "INSERT" ? "transparent" : "var(--accent)"
-                                        }
-                                    }, void 0, false, {
-                                        fileName: "[project]/app/components/GameScreen.tsx",
-                                        lineNumber: 205,
-                                        columnNumber: 13
-                                    }, this)
-                                ]
-                            }, void 0, true, {
-                                fileName: "[project]/app/components/GameScreen.tsx",
-                                lineNumber: 194,
-                                columnNumber: 11
-                            }, this)
-                        ]
-                    }, void 0, true, {
+                                        lineNumber: 219,
+                                        columnNumber: 24
+                                    }, this);
+                                }),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                    style: {
+                                        display: "flex",
+                                        alignItems: "center",
+                                        minHeight: "1.5rem",
+                                        position: "relative"
+                                    },
+                                    children: [
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                            style: {
+                                                marginRight: "0.5rem",
+                                                color: "#4af626",
+                                                fontSize: "1rem"
+                                            },
+                                            children: [
+                                                user?.name || "anonymous",
+                                                "@vim-in-motion:",
+                                                cwd,
+                                                "$"
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "[project]/app/components/GameScreen.tsx",
+                                            lineNumber: 222,
+                                            columnNumber: 17
+                                        }, this),
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
+                                            type: "text",
+                                            value: currentInput,
+                                            onChange: (e)=>setCurrentInput(e.target.value),
+                                            onKeyDown: handleTerminalKeyDown,
+                                            style: {
+                                                background: "transparent",
+                                                color: "inherit",
+                                                border: "none",
+                                                outline: "none",
+                                                flex: 1,
+                                                fontFamily: "inherit",
+                                                fontSize: "1rem",
+                                                padding: 0,
+                                                margin: 0
+                                            },
+                                            autoFocus: true,
+                                            autoComplete: "off",
+                                            spellCheck: "false"
+                                        }, void 0, false, {
+                                            fileName: "[project]/app/components/GameScreen.tsx",
+                                            lineNumber: 223,
+                                            columnNumber: 17
+                                        }, this),
+                                        autocompleteOptions.length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                            style: {
+                                                position: "absolute",
+                                                top: "100%",
+                                                left: `${currentInput.length * 0.6}rem`,
+                                                backgroundColor: "#252526",
+                                                border: "1px solid #4af626",
+                                                zIndex: 50,
+                                                padding: "0.2rem",
+                                                display: "flex",
+                                                flexDirection: "column"
+                                            },
+                                            children: autocompleteOptions.map((opt, i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                    style: {
+                                                        padding: "0.2rem 0.5rem",
+                                                        backgroundColor: i === autocompleteIndex ? "#4af626" : "transparent",
+                                                        color: i === autocompleteIndex ? "#000" : "#d4d4d4",
+                                                        cursor: "pointer"
+                                                    },
+                                                    children: opt
+                                                }, i, false, {
+                                                    fileName: "[project]/app/components/GameScreen.tsx",
+                                                    lineNumber: 246,
+                                                    columnNumber: 23
+                                                }, this))
+                                        }, void 0, false, {
+                                            fileName: "[project]/app/components/GameScreen.tsx",
+                                            lineNumber: 234,
+                                            columnNumber: 19
+                                        }, this)
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "[project]/app/components/GameScreen.tsx",
+                                    lineNumber: 221,
+                                    columnNumber: 15
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "[project]/app/components/GameScreen.tsx",
+                            lineNumber: 208,
+                            columnNumber: 13
+                        }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Fragment"], {
+                            children: [
+                                !openedReadme && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                    className: "stage-header",
+                                    children: [
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                            className: "stage-num",
+                                            children: [
+                                                "0",
+                                                currentStage + 1
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "[project]/app/components/GameScreen.tsx",
+                                            lineNumber: 266,
+                                            columnNumber: 19
+                                        }, this),
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                            children: [
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                    className: "stage-title",
+                                                    children: level.title
+                                                }, void 0, false, {
+                                                    fileName: "[project]/app/components/GameScreen.tsx",
+                                                    lineNumber: 268,
+                                                    columnNumber: 21
+                                                }, this),
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                    className: "stage-desc",
+                                                    dangerouslySetInnerHTML: {
+                                                        __html: level.description
+                                                    }
+                                                }, void 0, false, {
+                                                    fileName: "[project]/app/components/GameScreen.tsx",
+                                                    lineNumber: 269,
+                                                    columnNumber: 21
+                                                }, this)
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "[project]/app/components/GameScreen.tsx",
+                                            lineNumber: 267,
+                                            columnNumber: 19
+                                        }, this)
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "[project]/app/components/GameScreen.tsx",
+                                    lineNumber: 265,
+                                    columnNumber: 17
+                                }, this),
+                                openedReadme && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                    className: "stage-header",
+                                    children: [
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                            className: "stage-title",
+                                            children: level.title
+                                        }, void 0, false, {
+                                            fileName: "[project]/app/components/GameScreen.tsx",
+                                            lineNumber: 276,
+                                            columnNumber: 19
+                                        }, this),
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                            className: "stage-desc",
+                                            dangerouslySetInnerHTML: {
+                                                __html: level.description
+                                            }
+                                        }, void 0, false, {
+                                            fileName: "[project]/app/components/GameScreen.tsx",
+                                            lineNumber: 277,
+                                            columnNumber: 19
+                                        }, this)
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "[project]/app/components/GameScreen.tsx",
+                                    lineNumber: 275,
+                                    columnNumber: 17
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                    className: "cheatsheet",
+                                    children: [
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                            className: "cs-title",
+                                            children: [
+                                                "💡 Keys for this ",
+                                                openedReadme ? "file" : "stage"
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "[project]/app/components/GameScreen.tsx",
+                                            lineNumber: 282,
+                                            columnNumber: 17
+                                        }, this),
+                                        level.cheatsheet.map((c, i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                children: [
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                        className: "key",
+                                                        children: c.key
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/app/components/GameScreen.tsx",
+                                                        lineNumber: 284,
+                                                        columnNumber: 33
+                                                    }, this),
+                                                    " — ",
+                                                    c.desc
+                                                ]
+                                            }, i, true, {
+                                                fileName: "[project]/app/components/GameScreen.tsx",
+                                                lineNumber: 284,
+                                                columnNumber: 20
+                                            }, this))
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "[project]/app/components/GameScreen.tsx",
+                                    lineNumber: 281,
+                                    columnNumber: 15
+                                }, this),
+                                !openedReadme && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                    className: "task-box",
+                                    children: [
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                            className: "task-label",
+                                            children: "Your Task"
+                                        }, void 0, false, {
+                                            fileName: "[project]/app/components/GameScreen.tsx",
+                                            lineNumber: 290,
+                                            columnNumber: 19
+                                        }, this),
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                            className: "task-goal",
+                                            dangerouslySetInnerHTML: {
+                                                __html: level.task
+                                            }
+                                        }, void 0, false, {
+                                            fileName: "[project]/app/components/GameScreen.tsx",
+                                            lineNumber: 291,
+                                            columnNumber: 19
+                                        }, this),
+                                        feedback && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                            className: `feedback ${feedback.type}`,
+                                            style: {
+                                                display: 'block'
+                                            },
+                                            children: feedback.msg
+                                        }, void 0, false, {
+                                            fileName: "[project]/app/components/GameScreen.tsx",
+                                            lineNumber: 293,
+                                            columnNumber: 21
+                                        }, this)
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "[project]/app/components/GameScreen.tsx",
+                                    lineNumber: 289,
+                                    columnNumber: 17
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                    className: "vim-editor-wrap",
+                                    "data-mode": vim.mode === "NORMAL" ? "NORMAL" : vim.mode === "COMMAND" ? ":" + vim.commandText : "-- " + vim.mode + " --",
+                                    children: [
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                            className: "vim-editor-overlay",
+                                            style: {
+                                                transform: `translate(${-scrollPosition.scrollLeft}px, ${-scrollPosition.scrollTop}px)`,
+                                                marginBottom: `-${scrollPosition.scrollTop}px`,
+                                                display: vim.mode === 'INSERT' ? 'none' : 'block'
+                                            },
+                                            children: renderVimOverlay()
+                                        }, void 0, false, {
+                                            fileName: "[project]/app/components/GameScreen.tsx",
+                                            lineNumber: 301,
+                                            columnNumber: 17
+                                        }, this),
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("textarea", {
+                                            id: "vim-editor",
+                                            ref: vim.textareaRef,
+                                            spellCheck: false,
+                                            value: vim.text,
+                                            onChange: vim.handleChange,
+                                            onScroll: handleScroll,
+                                            onKeyDown: handleKeyDownInterceptor,
+                                            onSelect: vim.handleSelect,
+                                            onClick: vim.handleSelect,
+                                            onKeyUp: vim.handleSelect,
+                                            style: {
+                                                color: vim.mode !== "INSERT" ? "transparent" : "var(--text)",
+                                                caretColor: vim.mode !== "INSERT" ? "transparent" : "var(--accent)"
+                                            }
+                                        }, void 0, false, {
+                                            fileName: "[project]/app/components/GameScreen.tsx",
+                                            lineNumber: 311,
+                                            columnNumber: 17
+                                        }, this)
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "[project]/app/components/GameScreen.tsx",
+                                    lineNumber: 300,
+                                    columnNumber: 15
+                                }, this)
+                            ]
+                        }, void 0, true)
+                    }, void 0, false, {
                         fileName: "[project]/app/components/GameScreen.tsx",
-                        lineNumber: 167,
+                        lineNumber: 206,
                         columnNumber: 9
                     }, this),
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                    !isTerminal && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                         className: "game-sidebar",
                         children: [
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                 className: "sidebar-tab",
-                                children: [
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
-                                        className: `tab-btn ${activeTab === 'stages' ? 'active' : ''}`,
-                                        onClick: ()=>setActiveTab('stages'),
-                                        children: "Stages"
-                                    }, void 0, false, {
-                                        fileName: "[project]/app/components/GameScreen.tsx",
-                                        lineNumber: 227,
-                                        columnNumber: 13
-                                    }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
-                                        className: `tab-btn ${activeTab === 'ref' ? 'active' : ''}`,
-                                        onClick: ()=>setActiveTab('ref'),
-                                        children: "Reference"
-                                    }, void 0, false, {
-                                        fileName: "[project]/app/components/GameScreen.tsx",
-                                        lineNumber: 228,
-                                        columnNumber: 13
-                                    }, this)
-                                ]
-                            }, void 0, true, {
-                                fileName: "[project]/app/components/GameScreen.tsx",
-                                lineNumber: 226,
-                                columnNumber: 11
-                            }, this),
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                className: `tab-content ${activeTab === 'stages' ? 'active' : ''}`,
-                                children: __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$levels$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["LEVELS"].map((l, i)=>{
-                                    const isDone = completedStages.includes(l.id);
-                                    const isActive = i === currentStage;
-                                    // Stage is locked unless admin unlocked it AND the previous stage was completed
-                                    const isAdminUnlocked = i <= adminUnlockedStageLimit;
-                                    const isPrevDone = i === 0 ? true : completedStages.includes(__TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$levels$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["LEVELS"][i - 1].id);
-                                    const isLocked = !isAdminUnlocked || !isPrevDone;
-                                    const icon = isDone ? '✓' : isActive ? '▶' : isLocked ? '🔒' : '○';
-                                    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                        className: `stage-item ${isDone ? 'completed' : ''} ${isActive ? 'active' : ''} ${isLocked ? 'locked' : ''}`,
-                                        onClick: ()=>!isLocked && onProgress(i, completedStages),
-                                        children: [
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                className: "stage-icon",
-                                                children: icon
-                                            }, void 0, false, {
-                                                fileName: "[project]/app/components/GameScreen.tsx",
-                                                lineNumber: 249,
-                                                columnNumber: 19
-                                            }, this),
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                children: [
-                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                        style: {
-                                                            fontSize: ".75rem",
-                                                            fontWeight: 700
-                                                        },
-                                                        children: [
-                                                            "Stage ",
-                                                            i + 1
-                                                        ]
-                                                    }, void 0, true, {
-                                                        fileName: "[project]/app/components/GameScreen.tsx",
-                                                        lineNumber: 251,
-                                                        columnNumber: 21
-                                                    }, this),
-                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                        style: {
-                                                            fontSize: ".68rem",
-                                                            color: "var(--muted)"
-                                                        },
-                                                        children: l.title
-                                                    }, void 0, false, {
-                                                        fileName: "[project]/app/components/GameScreen.tsx",
-                                                        lineNumber: 252,
-                                                        columnNumber: 21
-                                                    }, this)
-                                                ]
-                                            }, void 0, true, {
-                                                fileName: "[project]/app/components/GameScreen.tsx",
-                                                lineNumber: 250,
-                                                columnNumber: 19
-                                            }, this)
-                                        ]
-                                    }, l.id, true, {
-                                        fileName: "[project]/app/components/GameScreen.tsx",
-                                        lineNumber: 244,
-                                        columnNumber: 17
-                                    }, this);
-                                })
+                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                    className: "tab-btn active",
+                                    children: "Reference"
+                                }, void 0, false, {
+                                    fileName: "[project]/app/components/GameScreen.tsx",
+                                    lineNumber: 336,
+                                    columnNumber: 15
+                                }, this)
                             }, void 0, false, {
                                 fileName: "[project]/app/components/GameScreen.tsx",
-                                lineNumber: 231,
-                                columnNumber: 11
+                                lineNumber: 335,
+                                columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                className: `tab-content ${activeTab === 'ref' ? 'active' : ''}`,
+                                className: "tab-content active",
                                 children: [
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                         className: "ref-section",
@@ -1951,8 +2151,8 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                                                 children: "Modes"
                                             }, void 0, false, {
                                                 fileName: "[project]/app/components/GameScreen.tsx",
-                                                lineNumber: 261,
-                                                columnNumber: 17
+                                                lineNumber: 341,
+                                                columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                 className: "ref-row",
@@ -1962,22 +2162,22 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                                                         children: "i"
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/GameScreen.tsx",
-                                                        lineNumber: 262,
-                                                        columnNumber: 42
+                                                        lineNumber: 342,
+                                                        columnNumber: 44
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                         className: "ref-desc",
                                                         children: "insert before cursor"
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/GameScreen.tsx",
-                                                        lineNumber: 262,
-                                                        columnNumber: 76
+                                                        lineNumber: 342,
+                                                        columnNumber: 78
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/app/components/GameScreen.tsx",
-                                                lineNumber: 262,
-                                                columnNumber: 17
+                                                lineNumber: 342,
+                                                columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                 className: "ref-row",
@@ -1987,22 +2187,22 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                                                         children: "a"
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/GameScreen.tsx",
-                                                        lineNumber: 263,
-                                                        columnNumber: 42
+                                                        lineNumber: 343,
+                                                        columnNumber: 44
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                         className: "ref-desc",
                                                         children: "insert after cursor"
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/GameScreen.tsx",
-                                                        lineNumber: 263,
-                                                        columnNumber: 76
+                                                        lineNumber: 343,
+                                                        columnNumber: 78
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/app/components/GameScreen.tsx",
-                                                lineNumber: 263,
-                                                columnNumber: 17
+                                                lineNumber: 343,
+                                                columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                 className: "ref-row",
@@ -2012,28 +2212,28 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                                                         children: "Esc"
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/GameScreen.tsx",
-                                                        lineNumber: 264,
-                                                        columnNumber: 42
+                                                        lineNumber: 344,
+                                                        columnNumber: 44
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                         className: "ref-desc",
                                                         children: "back to normal"
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/GameScreen.tsx",
-                                                        lineNumber: 264,
-                                                        columnNumber: 78
+                                                        lineNumber: 344,
+                                                        columnNumber: 80
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/app/components/GameScreen.tsx",
-                                                lineNumber: 264,
-                                                columnNumber: 17
+                                                lineNumber: 344,
+                                                columnNumber: 19
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/app/components/GameScreen.tsx",
-                                        lineNumber: 260,
-                                        columnNumber: 14
+                                        lineNumber: 340,
+                                        columnNumber: 16
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                         className: "ref-section",
@@ -2043,8 +2243,8 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                                                 children: "Motions"
                                             }, void 0, false, {
                                                 fileName: "[project]/app/components/GameScreen.tsx",
-                                                lineNumber: 267,
-                                                columnNumber: 17
+                                                lineNumber: 347,
+                                                columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                 className: "ref-row",
@@ -2054,22 +2254,22 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                                                         children: "h j k l"
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/GameScreen.tsx",
-                                                        lineNumber: 268,
-                                                        columnNumber: 42
+                                                        lineNumber: 348,
+                                                        columnNumber: 44
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                         className: "ref-desc",
                                                         children: "← ↓ ↑ →"
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/GameScreen.tsx",
-                                                        lineNumber: 268,
-                                                        columnNumber: 82
+                                                        lineNumber: 348,
+                                                        columnNumber: 84
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/app/components/GameScreen.tsx",
-                                                lineNumber: 268,
-                                                columnNumber: 17
+                                                lineNumber: 348,
+                                                columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                 className: "ref-row",
@@ -2079,22 +2279,22 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                                                         children: "w / b"
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/GameScreen.tsx",
-                                                        lineNumber: 269,
-                                                        columnNumber: 42
+                                                        lineNumber: 349,
+                                                        columnNumber: 44
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                         className: "ref-desc",
                                                         children: "word forward/back"
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/GameScreen.tsx",
-                                                        lineNumber: 269,
-                                                        columnNumber: 80
+                                                        lineNumber: 349,
+                                                        columnNumber: 82
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/app/components/GameScreen.tsx",
-                                                lineNumber: 269,
-                                                columnNumber: 17
+                                                lineNumber: 349,
+                                                columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                 className: "ref-row",
@@ -2104,28 +2304,28 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                                                         children: "$ / 0"
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/GameScreen.tsx",
-                                                        lineNumber: 270,
-                                                        columnNumber: 42
+                                                        lineNumber: 350,
+                                                        columnNumber: 44
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                         className: "ref-desc",
                                                         children: "end / start of line"
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/GameScreen.tsx",
-                                                        lineNumber: 270,
-                                                        columnNumber: 80
+                                                        lineNumber: 350,
+                                                        columnNumber: 82
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/app/components/GameScreen.tsx",
-                                                lineNumber: 270,
-                                                columnNumber: 17
+                                                lineNumber: 350,
+                                                columnNumber: 19
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/app/components/GameScreen.tsx",
-                                        lineNumber: 266,
-                                        columnNumber: 14
+                                        lineNumber: 346,
+                                        columnNumber: 16
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                         className: "ref-section",
@@ -2135,8 +2335,8 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                                                 children: "Actions"
                                             }, void 0, false, {
                                                 fileName: "[project]/app/components/GameScreen.tsx",
-                                                lineNumber: 273,
-                                                columnNumber: 17
+                                                lineNumber: 353,
+                                                columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                 className: "ref-row",
@@ -2146,22 +2346,22 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                                                         children: "d / y / p"
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/GameScreen.tsx",
-                                                        lineNumber: 274,
-                                                        columnNumber: 42
+                                                        lineNumber: 354,
+                                                        columnNumber: 44
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                         className: "ref-desc",
                                                         children: "delete / yank / paste"
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/GameScreen.tsx",
-                                                        lineNumber: 274,
-                                                        columnNumber: 84
+                                                        lineNumber: 354,
+                                                        columnNumber: 86
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/app/components/GameScreen.tsx",
-                                                lineNumber: 274,
-                                                columnNumber: 17
+                                                lineNumber: 354,
+                                                columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                 className: "ref-row",
@@ -2171,28 +2371,28 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                                                         children: "u / ."
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/GameScreen.tsx",
-                                                        lineNumber: 275,
-                                                        columnNumber: 42
+                                                        lineNumber: 355,
+                                                        columnNumber: 44
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                         className: "ref-desc",
                                                         children: "undo / repeat"
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/GameScreen.tsx",
-                                                        lineNumber: 275,
-                                                        columnNumber: 80
+                                                        lineNumber: 355,
+                                                        columnNumber: 82
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/app/components/GameScreen.tsx",
-                                                lineNumber: 275,
-                                                columnNumber: 17
+                                                lineNumber: 355,
+                                                columnNumber: 19
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/app/components/GameScreen.tsx",
-                                        lineNumber: 272,
-                                        columnNumber: 14
+                                        lineNumber: 352,
+                                        columnNumber: 16
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                         className: "ref-section",
@@ -2202,8 +2402,8 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                                                 children: "Template"
                                             }, void 0, false, {
                                                 fileName: "[project]/app/components/GameScreen.tsx",
-                                                lineNumber: 278,
-                                                columnNumber: 17
+                                                lineNumber: 358,
+                                                columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                 className: "ref-row",
@@ -2213,44 +2413,44 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                                                         children: "action+count+mo"
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/GameScreen.tsx",
-                                                        lineNumber: 279,
-                                                        columnNumber: 42
+                                                        lineNumber: 359,
+                                                        columnNumber: 44
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                         className: "ref-desc"
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/GameScreen.tsx",
-                                                        lineNumber: 279,
-                                                        columnNumber: 90
+                                                        lineNumber: 359,
+                                                        columnNumber: 92
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/app/components/GameScreen.tsx",
-                                                lineNumber: 279,
-                                                columnNumber: 17
+                                                lineNumber: 359,
+                                                columnNumber: 19
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/app/components/GameScreen.tsx",
-                                        lineNumber: 277,
-                                        columnNumber: 14
+                                        lineNumber: 357,
+                                        columnNumber: 16
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/app/components/GameScreen.tsx",
-                                lineNumber: 259,
-                                columnNumber: 11
+                                lineNumber: 339,
+                                columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/app/components/GameScreen.tsx",
-                        lineNumber: 225,
-                        columnNumber: 9
+                        lineNumber: 334,
+                        columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/components/GameScreen.tsx",
-                lineNumber: 162,
+                lineNumber: 200,
                 columnNumber: 7
             }, this),
             showWinner && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2263,7 +2463,7 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                             children: currentStage + 1 < __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$levels$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["LEVELS"].length ? "🎉 Stage Clear!" : "🏆 All Done!"
                         }, void 0, false, {
                             fileName: "[project]/app/components/GameScreen.tsx",
-                            lineNumber: 289,
+                            lineNumber: 370,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2271,7 +2471,7 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                             children: currentStage + 1 < __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$levels$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["LEVELS"].length ? currentStage + 1 <= adminUnlockedStageLimit ? `"${level.title}" complete. Ready for the next challenge?` : `"${level.title}" complete. Waiting for Instructor to unlock the next stage...` : "You've completed all stages. You're a VIM ninja! 🥷"
                         }, void 0, false, {
                             fileName: "[project]/app/components/GameScreen.tsx",
-                            lineNumber: 290,
+                            lineNumber: 371,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -2285,24 +2485,24 @@ function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLim
                             children: currentStage + 1 < __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$levels$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["LEVELS"].length && currentStage + 1 > adminUnlockedStageLimit ? "Close" : "Continue →"
                         }, void 0, false, {
                             fileName: "[project]/app/components/GameScreen.tsx",
-                            lineNumber: 297,
+                            lineNumber: 378,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/app/components/GameScreen.tsx",
-                    lineNumber: 288,
+                    lineNumber: 369,
                     columnNumber: 11
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/app/components/GameScreen.tsx",
-                lineNumber: 287,
+                lineNumber: 368,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/app/components/GameScreen.tsx",
-        lineNumber: 143,
+        lineNumber: 190,
         columnNumber: 5
     }, this);
 }

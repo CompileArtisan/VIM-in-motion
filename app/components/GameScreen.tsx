@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { LEVELS } from "../../lib/levels";
 import { useVim } from "../../hooks/useVim";
-import { useTerminal } from "../../hooks/useTerminal";
+import { useTerminal } from "../../hooks/useTerminalHook";
 
 interface GameScreenProps {
   user: { name: string; isAdmin: boolean };
