@@ -7,10 +7,13 @@ interface AdminDashboardProps {
   totalLevels: number;
   unlockedStageLimit: number;
   setGlobalUnlockLimit: (limit: number) => void;
+  deletePlayer: (playerKey: string) => Promise<void>;
   onLogout: () => void;
 }
 
-export default function AdminDashboard({ players, activityLogs, totalLevels, unlockedStageLimit, setGlobalUnlockLimit, onLogout }: AdminDashboardProps) {
+type PlayerListItem = PlayerData & { playerKey: string };
+
+export default function AdminDashboard({ players, activityLogs, totalLevels, unlockedStageLimit, setGlobalUnlockLimit, deletePlayer, onLogout }: AdminDashboardProps) {
   const timeAgo = (ts: number) => {
     const diff = Math.floor((Date.now() - ts) / 1000);
     if (diff < 60) return `${diff}s ago`;
@@ -21,8 +24,14 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
   const fiveMinAgo = Date.now() - 5 * 60 * 1000;
   
   const playersList = useMemo(() => {
-    return Object.values(players || {}).sort((a,b) => (b.completedStages?.length || 0) - (a.completedStages?.length || 0));
+    return Object.entries(players || {})
+      .map(([playerKey, player]) => ({ ...player, playerKey }))
+      .sort((a,b) => (b.completedStages?.length || 0) - (a.completedStages?.length || 0));
   }, [players]);
+
+  const handleDeletePlayer = async (player: PlayerListItem) => {
+    await deletePlayer(player.playerKey);
+  };
 
   const activePlayers = playersList.filter(p => p.lastActive > fiveMinAgo).length;
   const completedPlayers = playersList.filter(p => p.completedStages?.length === totalLevels).length;
@@ -45,10 +54,18 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
               const active = p.lastActive > fiveMinAgo;
               const stageNum = (p.currentStage || 0) + 1;
               return (
-                <div key={p.name} className="player-card">
-                  <div className="pc-name">{active && <span className="online-dot"></span>}{p.name}</div>
+                <div key={p.playerKey} className="player-card">
+                  <div className="pc-name">{active && <span className="online-dot"></span>}{p.username || p.name}</div>
+                  {p.email && <div className="pc-meta">{p.email}</div>}
                   <div className="pc-meta">{p.completedStages?.length || 0}/{totalLevels} stages done</div>
                   <div className="pc-stage">S{stageNum}</div>
+                  <button
+                    className="btn btn-danger"
+                    onClick={() => handleDeletePlayer(p)}
+                    style={{marginTop: ".65rem", padding: ".25rem .45rem", fontSize: ".62rem"}}
+                  >
+                    Delete
+                  </button>
                 </div>
               )
             })}
@@ -97,16 +114,18 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
             <thead>
               <tr>
                 <th>Player</th>
+                <th>Email</th>
                 <th>Stage</th>
                 <th>Progress</th>
                 <th>Status</th>
                 <th>Last Active</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {playersList.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{color:"var(--muted)", textAlign:"center", padding:"2rem"}}>
+                  <td colSpan={7} style={{color:"var(--muted)", textAlign:"center", padding:"2rem"}}>
                     Waiting for players to join...
                   </td>
                 </tr>
@@ -116,8 +135,9 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
                 const active = p.lastActive > fiveMinAgo;
 
                 return (
-                  <tr key={p.name}>
-                    <td style={{fontWeight:700}}>{p.name}</td>
+                  <tr key={p.playerKey}>
+                    <td style={{fontWeight:700}}>{p.username || p.name}</td>
+                    <td style={{color:"var(--muted)", fontSize:".72rem"}}>{p.email || "-"}</td>
                     <td>
                       <span style={{color:"var(--accent2)"}}>S{(p.currentStage || 0) + 1}</span> 
                     </td>
@@ -137,6 +157,15 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
                       )}
                     </td>
                     <td style={{color:"var(--muted)", fontSize:".72rem"}}>{timeAgo(p.lastActive)}</td>
+                    <td>
+                      <button
+                        className="btn btn-danger"
+                        onClick={() => handleDeletePlayer(p)}
+                        style={{padding: ".25rem .5rem", fontSize: ".62rem"}}
+                      >
+                        Delete
+                      </button>
+                    </td>
                   </tr>
                 )
               })}

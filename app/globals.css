@@ -131,6 +131,79 @@ input:focus { border-color: var(--accent); }
 .game-body { flex: 1; display: grid; grid-template-columns: 1fr 340px; overflow: hidden; }
 .game-body.terminal-mode { display: flex; flex-direction: column; }
 
+.terminal-input-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 8rem;
+  min-height: 1.5rem;
+}
+
+.terminal-input-display {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  color: #d4d4d4;
+  pointer-events: none;
+  white-space: pre;
+}
+
+.terminal-block-cursor {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1ch;
+  min-width: 1ch;
+  max-width: 1ch;
+  height: 1.15rem;
+  line-height: 1;
+  background: #d4d4d4;
+  color: #000;
+  margin-left: 0;
+  vertical-align: middle;
+  animation: terminal-cursor-blink 1s steps(1) infinite;
+}
+
+.terminal-input[type="text"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  background: transparent !important;
+  color: transparent !important;
+  border: 0 !important;
+  outline: none;
+  font: inherit;
+  font-size: 1rem;
+  padding: 0 !important;
+  margin: 0;
+  caret-color: transparent !important;
+  transition: none;
+  appearance: none;
+}
+
+.terminal-input[type="text"]:focus {
+  border: 0 !important;
+  box-shadow: none;
+}
+
+.terminal-input[type="text"]::selection {
+  background: transparent;
+}
+
+@keyframes terminal-cursor-blink {
+  0%, 49% {
+    background: #d4d4d4;
+    color: #000;
+  }
+  50%, 100% {
+    background: transparent;
+    color: #d4d4d4;
+  }
+}
+
 /* vim editor */
 .vim-area { display: flex; flex-direction: column; padding: 1.5rem; gap: 1rem; overflow-y: auto; flex: 1; }
 .stage-header { display: flex; align-items: baseline; gap: 1rem; }

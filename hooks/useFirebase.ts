@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { db } from '../lib/firebase';
-import { ref, set, get, onValue, push } from 'firebase/database';
+import { ref, set, get, onValue, push, update } from 'firebase/database';
 
 export interface StageData {
   currentStage: number;
@@ -10,6 +10,9 @@ export interface StageData {
 
 export interface PlayerData extends StageData {
   name: string;
+  username: string;
+  email: string;
+  passwordHash?: string;
   lastActive: number;
 }
 
@@ -49,15 +52,16 @@ export function useFirebasePlayer(playerName: string | undefined) {
     const sanitizedName = playerName.replace(/[.#$[\]]/g, '_');
     const playerRef = ref(db, `players/${sanitizedName}`);
     
-    const data: PlayerData = {
+    const data: Partial<PlayerData> = {
       name: playerName,
+      username: playerName,
       currentStage: stageData.currentStage,
       completedStages: stageData.completedStages,
       lastActive: Date.now(),
       totalStages: stageData.totalStages,
     };
     
-    await set(playerRef, data);
+    await update(playerRef, data);
   };
 
   // Load Progress
@@ -137,5 +141,21 @@ export function useAdminDashboard(isAdmin: boolean | undefined) {
     set(ref(db, 'config/unlockedStageLimit'), limit);
   };
 
-  return { players, activityLogs, unlockedStageLimit, setGlobalUnlockLimit };
+  const deletePlayer = async (playerKey: string) => {
+    if (!isAdmin || !playerKey) return;
+
+    const playerSnapshot = await get(ref(db, `players/${playerKey}`));
+    const player = playerSnapshot.exists() ? playerSnapshot.val() as Partial<PlayerData> : null;
+    const updates: Record<string, null> = {
+      [`players/${playerKey}`]: null,
+    };
+
+    if (player?.email) {
+      updates[`playerEmails/${player.email.replace(/[.#$[\]]/g, '_')}`] = null;
+    }
+
+    await update(ref(db), updates);
+  };
+
+  return { players, activityLogs, unlockedStageLimit, setGlobalUnlockLimit, deletePlayer };
 }

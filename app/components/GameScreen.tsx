@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { LEVELS } from "../../lib/levels";
 import { useVim } from "../../hooks/useVim";
+import type { VimUsage } from "../../hooks/useVim";
 import { useTerminal } from "../../hooks/useTerminalHook";
 
 interface GameScreenProps {
@@ -11,14 +12,17 @@ interface GameScreenProps {
   onProgress: (newStage: number, completed: string[]) => void;
   logActivity: (msg: string) => void;
   onLogout: () => void;
+  onReset: () => void;
 }
 
-export default function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLimit, onProgress, logActivity, onLogout }: GameScreenProps) {
+export default function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLimit, onProgress, logActivity, onLogout, onReset }: GameScreenProps) {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'fail', msg: string } | null>(null);
   const [showWinner, setShowWinner] = useState(false);
   const [scrollPosition, setScrollPosition] = useState({ scrollTop: 0, scrollLeft: 0 });
   const [showNoArrows, setShowNoArrows] = useState(false);
   const [openedReadme, setOpenedReadme] = useState<"README.md" | "README.org" | null>(null);
+  const [terminalCursor, setTerminalCursor] = useState(0);
+  const terminalInputRef = useRef<HTMLInputElement>(null);
 
   const readmeLevel = {
     id: "readme",
@@ -30,11 +34,12 @@ export default function GameScreen({ user, currentStage, completedStages, adminU
       ? `# VIM in Motion\n\n## Modes\n- It\`s a Modal text editor, where each mode changes what your keys do.\n- Your keys don\`t just type, they also serve as different ways of interacting with text through keybinds.\n- In VIM, there are 3 modes.\n### Normal Mode (default)\n- This is where you navigate and edit\n- Keys do actions, not typing\n### Insert Mode\n- This is where you actually type text\nPress \`Esc\` to go back to Normal mode`
       : `#+title: VIM in Motion\n\n* Modes\n- It\`s a Modal text editor, where each mode changes what your keys do.\n- Your keys don\`t just type, they also serve as different ways of interacting with text through keybinds.\n- In VIM, there are 3 modes.\n** Normal Mode (default)\n- This is where you navigate and edit\n- Keys do actions, not typing\n** Insert Mode\n- This is where you actually type text\nPress ~Esc~ to go back to Normal mode`,
     check: (text: string) => false, // No winning condition
+    requiredActions: [],
   };
 
   const level = openedReadme ? readmeLevel : LEVELS[currentStage];
 
-  const handleCheck = (finalText: string) => {
+  const handleCheck = (finalText: string, vimUsage: VimUsage) => {
     if (!level) return;
 
     if (openedReadme) {
@@ -44,6 +49,19 @@ export default function GameScreen({ user, currentStage, completedStages, adminU
 
     const isPass = level.check(finalText);
     if (isPass) {
+      const usedCommands = new Set([...vimUsage.commands, ...vimUsage.actions]);
+      const missingActions = (level.requiredActions || []).filter(action => {
+        return !action.matches.some(match => usedCommands.has(match));
+      });
+
+      if (missingActions.length > 0) {
+        setFeedback({
+          type: "fail",
+          msg: `Text is correct, but these Vim actions were not tracked: ${missingActions.map(action => action.label).join(", ")}.`,
+        });
+        return;
+      }
+
       setFeedback({ type: "success", msg: "✓ Correct! Well done." });
       
       const newCompleted = [...completedStages];
@@ -87,7 +105,27 @@ export default function GameScreen({ user, currentStage, completedStages, adminU
         }
       }
     }
-  });
+  }, onReset);
+
+  const syncTerminalCursor = (input: HTMLInputElement | null = terminalInputRef.current) => {
+    if (!input) return;
+    setTerminalCursor(input.selectionStart ?? input.value.length);
+  };
+
+  const handleTerminalKeyDownWithCursor = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    handleTerminalKeyDown(e);
+    requestAnimationFrame(() => syncTerminalCursor());
+  };
+
+  const handleTerminalInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCurrentInput(e.target.value);
+    syncTerminalCursor(e.target);
+  };
+
+  const terminalCursorIndex = Math.min(terminalCursor, currentInput.length);
+  const terminalInputBeforeCursor = currentInput.slice(0, terminalCursorIndex);
+  const terminalCursorChar = currentInput[terminalCursorIndex] || "\u00a0";
+  const terminalInputAfterCursor = currentInput.slice(terminalCursorIndex + 1);
 
   const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
     setScrollPosition({
@@ -97,8 +135,8 @@ export default function GameScreen({ user, currentStage, completedStages, adminU
   };
 
   const handleKeyDownInterceptor = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Stage 2 (index 1) arrow key blocking
-    if (!openedReadme && currentStage === 1 && vim.mode === "NORMAL" && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+    // Stage 2 onward arrow key blocking
+    if (!openedReadme && currentStage >= 1 && vim.mode === "NORMAL" && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
       e.preventDefault();
       setShowNoArrows(true);
       setTimeout(() => setShowNoArrows(false), 2000);
@@ -117,7 +155,7 @@ export default function GameScreen({ user, currentStage, completedStages, adminU
     const start = Math.min(vim.cursor.start, vim.cursor.end);
     const end = Math.max(vim.cursor.start, vim.cursor.end);
 
-    if (vim.mode === "NORMAL") {
+    if (vim.mode === "NORMAL" || vim.mode === "COMMAND" || vim.mode === "SEARCH") {
       const before = text.slice(0, curPos);
       const char = text[curPos] || " ";
       const after = text.slice(curPos + 1);
@@ -184,6 +222,19 @@ export default function GameScreen({ user, currentStage, completedStages, adminU
     setIsTerminal(true);
   };
 
+  useEffect(() => {
+    if (!showWinner) return;
+
+    const handleWinnerKeyDown = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      handleDismissWinner();
+    };
+
+    window.addEventListener("keydown", handleWinnerKeyDown);
+    return () => window.removeEventListener("keydown", handleWinnerKeyDown);
+  }, [showWinner, currentStage, completedStages, adminUnlockedStageLimit, level]);
+
   if (!level) return null;
 
   return (
@@ -220,16 +271,27 @@ export default function GameScreen({ user, currentStage, completedStages, adminU
               })}
               <div style={{ display: "flex", alignItems: "center", minHeight: "1.5rem", position: "relative" }}>
                 <span style={{ marginRight: "0.5rem", color: "#4af626", fontSize: "1rem" }}>{user?.name || "anonymous"}@vim-in-motion:{cwd}$</span>
-                <input
-                  type="text"
-                  value={currentInput}
-                  onChange={(e) => setCurrentInput(e.target.value)}
-                  onKeyDown={handleTerminalKeyDown}
-                  style={{ background: "transparent", color: "inherit", border: "none", outline: "none", flex: 1, fontFamily: "inherit", fontSize: "1rem", padding: 0, margin: 0 }}
-                  autoFocus
-                  autoComplete="off"
-                  spellCheck="false"
-                />
+                <div className="terminal-input-wrap">
+                  <div className="terminal-input-display" aria-hidden="true">
+                    <span>{terminalInputBeforeCursor}</span>
+                    <span className="terminal-block-cursor">{terminalCursorChar}</span>
+                    <span>{terminalInputAfterCursor}</span>
+                  </div>
+                  <input
+                    ref={terminalInputRef}
+                    className="terminal-input"
+                    type="text"
+                    value={currentInput}
+                    onChange={handleTerminalInputChange}
+                    onKeyDown={handleTerminalKeyDownWithCursor}
+                    onKeyUp={(e) => syncTerminalCursor(e.currentTarget)}
+                    onClick={(e) => syncTerminalCursor(e.currentTarget)}
+                    onSelect={(e) => syncTerminalCursor(e.currentTarget)}
+                    autoFocus
+                    autoComplete="off"
+                    spellCheck="false"
+                  />
+                </div>
                 {autocompleteOptions.length > 0 && (
                   <div style={{
                     position: "absolute",
@@ -297,7 +359,7 @@ export default function GameScreen({ user, currentStage, completedStages, adminU
                 </div>
               )}
 
-              <div className="vim-editor-wrap" data-mode={vim.mode === "NORMAL" ? "NORMAL" : vim.mode === "COMMAND" ? ":" + vim.commandText : "-- " + vim.mode + " --"}>
+              <div className="vim-editor-wrap" data-mode={vim.mode === "NORMAL" ? "NORMAL" : vim.mode === "COMMAND" ? ":" + vim.commandText : vim.mode === "SEARCH" ? "/" + vim.searchText : "-- " + vim.mode + " --"}>
                 <div 
                   className="vim-editor-overlay"
                   style={{

@@ -1,11 +1,12 @@
 import { useState, KeyboardEvent, ReactNode } from "react";
+import { LEVELS } from "../lib/levels";
 
 interface User {
   name: string;
   isAdmin: boolean;
 }
 
-const STAGES = Array.from({ length: 10 }, (_, i) => `stage-${i + 1}.level`);
+const STAGES = LEVELS.map((_, i) => `stage-${i + 1}.level`);
 const DIRS: Record<string, string[]> = {
   "~": ["README.md", "README.org", "levels/"],
   "~/levels": STAGES,
@@ -46,7 +47,8 @@ export function useTerminal(
   user: User | null,
   completedStages: string[],
   adminUnlockedStageLimit: number,
-  onOpenFile?: (filename: string) => void
+  onOpenFile?: (filename: string) => void,
+  onReset?: () => void
 ) {
   const [history, setHistory] = useState<ReactNode[]>([]);
   const [currentInput, setCurrentInput] = useState<string>("");
@@ -94,7 +96,7 @@ export function useTerminal(
       let matches: string[] = [];
       if (parts.length === 1) {
         // Command completion
-        const commands = ["ls", "cd", "cat", "vim", "clear", "sudo", "help", "mkdir"];
+        const commands = ["ls", "cd", "cat", "vim", "clear", "reset", "sudo", "help", "mkdir"];
         matches = commands.filter(cmd => cmd.startsWith(currentWord));
       } else {
         // File completions based on cwd
@@ -264,6 +266,18 @@ export function useTerminal(
           setHistory([]);
           setCurrentInput("");
           return;
+        case "reset":
+          localStorage.clear();
+          setHistory([]);
+          setCommandHistory([]);
+          setHistoryIndex(-1);
+          setAutocompleteOptions([]);
+          setAutocompleteIndex(0);
+          setCurrentInput("");
+          setCwd("~");
+          setIsTerminal(true);
+          if (onReset) onReset();
+          return;
         case "help":
           newHistory.push(
             "Available commands:",
@@ -272,6 +286,7 @@ export function useTerminal(
             "  cat    - Print file contents",
             "  vim    - Edit a file (e.g., vim stage-1.level)",
             "  clear  - Clear terminal output",
+            "  reset  - Clear local storage and restart the app session",
             "  sudo   - Execute a command as superuser",
             "  help   - Show this help message"
           );
@@ -347,4 +362,3 @@ export function useTerminal(
     historyIndex
   };
 }
-

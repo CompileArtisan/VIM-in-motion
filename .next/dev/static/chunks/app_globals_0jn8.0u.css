@@ -260,6 +260,80 @@ input:focus {
   display: flex;
 }
 
+.terminal-input-wrap {
+  flex: 1;
+  min-width: 8rem;
+  min-height: 1.5rem;
+  position: relative;
+}
+
+.terminal-input-display {
+  color: #d4d4d4;
+  pointer-events: none;
+  white-space: pre;
+  align-items: center;
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  display: flex;
+  position: absolute;
+  inset: 0;
+}
+
+.terminal-block-cursor {
+  color: #000;
+  vertical-align: middle;
+  background: #d4d4d4;
+  justify-content: center;
+  align-items: center;
+  width: 1ch;
+  min-width: 1ch;
+  max-width: 1ch;
+  height: 1.15rem;
+  margin-left: 0;
+  line-height: 1;
+  animation: 1s step-end infinite terminal-cursor-blink;
+  display: inline-flex;
+}
+
+.terminal-input[type="text"] {
+  width: 100%;
+  font: inherit;
+  appearance: none;
+  outline: none;
+  margin: 0;
+  font-size: 1rem;
+  transition: none;
+  position: absolute;
+  inset: 0;
+  color: #0000 !important;
+  caret-color: #0000 !important;
+  background: none !important;
+  border: 0 !important;
+  padding: 0 !important;
+}
+
+.terminal-input[type="text"]:focus {
+  box-shadow: none;
+  border: 0 !important;
+}
+
+.terminal-input[type="text"]::selection {
+  background: none;
+}
+
+@keyframes terminal-cursor-blink {
+  0%, 49% {
+    color: #000;
+    background: #d4d4d4;
+  }
+
+  50%, 100% {
+    color: #d4d4d4;
+    background: none;
+  }
+}
+
 .vim-area {
   flex-direction: column;
   flex: 1;
