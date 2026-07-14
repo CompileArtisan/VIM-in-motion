@@ -14,6 +14,8 @@
 ## Levels to add
 
 - Level 6: yanking pasting
-- Level 7: searching and replacing
+- Level 7: searching
+- Level 8: replacing
 - Level 8: macros
-- Level 9: 
+- Level 9: more macros
+- Level 10: regex
