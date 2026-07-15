@@ -4,12 +4,30 @@ This document lists the features currently implemented in the online Vim editor/
 
 ## App Flow
 
-- Player login with a display name.
-- Instructor login with a password-protected dashboard.
+- Player account creation with separate username, student email, and password fields.
+- Student email must match `bl.en.u4xxxxxxxx`.
+- Player login accepts either username or email, plus password.
+- Player usernames and emails are unique; one username is mapped to one email.
+- Player information is stored separately from progress in Firebase.
+- Instructor login requires admin username and password.
 - Browser session restore through `localStorage`.
 - Simulated terminal entry point before opening stage files.
 - Stage completion through `:wq`.
+- Pressing Enter on the stage-clear dialog triggers the Continue/Close action.
+- Completed stages award 1-3 stars:
+  - 1 star for matching the target text.
+  - 2 stars for matching the target text and using the expected Vim actions.
+  - 3 stars for also finishing within the stage time limit.
+- Stage time limits use `vim_god` benchmarks when available: `vim_god`'s best time for that stage plus 5 seconds.
+- If `vim_god` or a stage benchmark is unavailable, the default 3-star time limit is 180 seconds.
+- The best star count per stage is saved with player progress.
+- The best completion time per stage is saved with player progress.
 - README files can be opened and exited with `:q`.
+
+Current instructor credentials:
+
+- Username: `instructor`
+- Password: `vimworkshop2024`
 
 ## Workshop Terminal
 
@@ -20,8 +38,11 @@ This document lists the features currently implemented in the online Vim editor/
 - `ls`, `cd`, `cat`, `vim`, `clear`, `reset`, `sudo`, `help`, and `mkdir` are supported.
 - Tab completion supports commands and file names.
 - Arrow keys browse terminal command history when autocomplete is closed.
+- The terminal uses a custom thick block cursor that follows the real input caret.
+- The block cursor renders the covered character in black while visible and white while blinking off.
 - Stage files respect completion locks and instructor unlock limits.
-- `reset` clears browser `localStorage`, resets the React session state, and returns to login.
+- `reset` asks for `y/n` confirmation in the terminal, then clears Firebase progress for the current account.
+- Reset clears completed stages, stars, and best times while keeping the player account and browser session.
 
 ## Vim Modes
 
@@ -46,6 +67,7 @@ This document lists the features currently implemented in the online Vim editor/
 - `dw`, `de`, `d$`, `dd`
 - `dj`, `d2j`, `dk`, `d2k`
 - `d[count][motion]`
+- Counted vertical deletes such as `d2j` delete complete line ranges without consuming the first character of the following line.
 - `yy`, `yw`, `y$`
 - `p`
 - `u`
@@ -128,19 +150,27 @@ The app now defines 19 practical Vim core stages:
 ## Instructor Dashboard
 
 - Live player list.
+- Player username and email display.
 - Active/idle status.
 - Current stage and completion counts.
+- Total stars earned across all stages.
 - Progress percentages.
 - Live activity log.
 - Global max-stage unlock control.
+- Admins can delete players directly from the dashboard.
+- Deleting a player removes their Firebase player record and frees their email mapping.
 
 ## Realtime Data
 
 When Firebase is configured:
 
+- Player signup stores `username`, `email`, password hash, progress, and activity metadata.
+- Email uniqueness is tracked through a `playerEmails` index.
 - Player progress is saved to Firebase Realtime Database.
+- Per-stage best times are saved and used for the `vim_god` benchmark account.
+- Completed stages, stars, and best times are synced from the live Firebase player record.
 - Existing progress loads when players rejoin.
-- Activity logs are pushed live.
+- Activity logs are pushed live for account creation, login, and stage activity.
 - Instructor unlock limits are synced live.
 
 Without Firebase, browser session restore still uses `localStorage`.

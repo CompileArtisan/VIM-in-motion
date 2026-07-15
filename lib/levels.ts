@@ -18,6 +18,7 @@ export interface Level {
   task: string;
   check: (text: string) => boolean;
   requiredActions?: RequiredAction[];
+  starTimeLimitSeconds?: number;
 }
 
 const clean = (text: string) => text.replace(/\r\n/g, "\n").trim();

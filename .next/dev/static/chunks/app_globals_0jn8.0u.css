@@ -123,6 +123,42 @@ input[type="text"], input[type="password"] {
   transition: border-color .2s;
 }
 
+input[type="text"]:-webkit-autofill {
+  -webkit-text-fill-color: var(--text);
+  box-shadow: 0 0 0 1000px var(--bg) inset;
+  caret-color: var(--text);
+}
+
+input[type="password"]:-webkit-autofill {
+  -webkit-text-fill-color: var(--text);
+  box-shadow: 0 0 0 1000px var(--bg) inset;
+  caret-color: var(--text);
+}
+
+input[type="text"]:-webkit-autofill:hover {
+  -webkit-text-fill-color: var(--text);
+  box-shadow: 0 0 0 1000px var(--bg) inset;
+  caret-color: var(--text);
+}
+
+input[type="password"]:-webkit-autofill:hover {
+  -webkit-text-fill-color: var(--text);
+  box-shadow: 0 0 0 1000px var(--bg) inset;
+  caret-color: var(--text);
+}
+
+input[type="text"]:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text);
+  box-shadow: 0 0 0 1000px var(--bg) inset;
+  caret-color: var(--text);
+}
+
+input[type="password"]:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text);
+  box-shadow: 0 0 0 1000px var(--bg) inset;
+  caret-color: var(--text);
+}
+
 input:focus {
   border-color: var(--accent);
 }
@@ -502,6 +538,20 @@ input:focus {
 .task-goal .target {
   color: var(--accent);
   font-weight: 700;
+}
+
+.stage-score-row {
+  color: var(--muted);
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: .65rem;
+  font-size: .72rem;
+  display: flex;
+}
+
+.stage-stars {
+  color: var(--yellow);
+  letter-spacing: 1px;
 }
 
 .check-btn {
@@ -999,6 +1049,80 @@ tr:hover td {
   color: var(--muted);
   margin-top: .5rem;
   font-size: .8rem;
+}
+
+.winner-stars {
+  margin-top: 1.35rem;
+}
+
+.winner-star-row {
+  justify-content: center;
+  align-items: center;
+  gap: .45rem;
+  min-height: 5.5rem;
+  display: flex;
+}
+
+.winner-star-slot {
+  width: 1em;
+  height: 1em;
+  font-size: 4.6rem;
+  line-height: 1;
+  display: inline-block;
+  position: relative;
+}
+
+.winner-star-outline {
+  color: var(--border);
+}
+
+.winner-star-fill {
+  color: var(--yellow);
+  text-shadow: 0 0 18px #f5c84259;
+  opacity: 0;
+  animation: 1.8s cubic-bezier(.16, 1.08, .28, 1) forwards winner-star-pop;
+  position: absolute;
+  inset: 0;
+  transform: scale(.15);
+}
+
+.winner-overlay.skip-stars .winner-star-fill {
+  opacity: 1;
+  animation: none;
+  transform: scale(1)translateY(0);
+}
+
+.winner-stars > span {
+  color: var(--muted);
+  letter-spacing: 0;
+  margin-top: .45rem;
+  font-size: .78rem;
+  display: block;
+}
+
+@keyframes winner-star-pop {
+  0% {
+    opacity: 0;
+    transform: scale(.15)translateY(20px);
+  }
+
+  65% {
+    opacity: 1;
+    transform: scale(1.16)translateY(-4px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1)translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .winner-star-fill {
+    opacity: 1;
+    animation: none;
+    transform: none;
+  }
 }
 
 @media (max-width: 768px) {

@@ -8,20 +8,46 @@ interface GameScreenProps {
   user: { name: string; isAdmin: boolean };
   currentStage: number;
   completedStages: string[];
+  stageStars: Record<string, number>;
+  stageBestTimes: Record<string, number>;
+  benchmarkStageTimes: Record<string, number>;
   adminUnlockedStageLimit: number;
-  onProgress: (newStage: number, completed: string[]) => void;
+  onProgress: (
+    newStage: number,
+    completed: string[],
+    stageStars?: Record<string, number>,
+    stageBestTimes?: Record<string, number>
+  ) => void;
   logActivity: (msg: string) => void;
   onLogout: () => void;
-  onReset: () => void;
+  onReset: () => void | Promise<void>;
 }
 
-export default function GameScreen({ user, currentStage, completedStages, adminUnlockedStageLimit, onProgress, logActivity, onLogout, onReset }: GameScreenProps) {
+const DEFAULT_STAR_TIME_LIMIT_SECONDS = 180;
+
+export default function GameScreen({
+  user,
+  currentStage,
+  completedStages,
+  stageStars,
+  stageBestTimes,
+  benchmarkStageTimes,
+  adminUnlockedStageLimit,
+  onProgress,
+  logActivity,
+  onLogout,
+  onReset
+}: GameScreenProps) {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'fail', msg: string } | null>(null);
   const [showWinner, setShowWinner] = useState(false);
+  const [winnerAnimationSkipped, setWinnerAnimationSkipped] = useState(false);
+  const [lastAwardedStars, setLastAwardedStars] = useState(0);
+  const [lastElapsedSeconds, setLastElapsedSeconds] = useState(0);
   const [scrollPosition, setScrollPosition] = useState({ scrollTop: 0, scrollLeft: 0 });
   const [showNoArrows, setShowNoArrows] = useState(false);
   const [openedReadme, setOpenedReadme] = useState<"README.md" | "README.org" | null>(null);
   const [terminalCursor, setTerminalCursor] = useState(0);
+  const [levelStartedAt, setLevelStartedAt] = useState(Date.now());
   const terminalInputRef = useRef<HTMLInputElement>(null);
 
   const readmeLevel = {
@@ -35,6 +61,7 @@ export default function GameScreen({ user, currentStage, completedStages, adminU
       : `#+title: VIM in Motion\n\n* Modes\n- It\`s a Modal text editor, where each mode changes what your keys do.\n- Your keys don\`t just type, they also serve as different ways of interacting with text through keybinds.\n- In VIM, there are 3 modes.\n** Normal Mode (default)\n- This is where you navigate and edit\n- Keys do actions, not typing\n** Insert Mode\n- This is where you actually type text\nPress ~Esc~ to go back to Normal mode`,
     check: (text: string) => false, // No winning condition
     requiredActions: [],
+    starTimeLimitSeconds: DEFAULT_STAR_TIME_LIMIT_SECONDS,
   };
 
   const level = openedReadme ? readmeLevel : LEVELS[currentStage];
@@ -54,23 +81,42 @@ export default function GameScreen({ user, currentStage, completedStages, adminU
         return !action.matches.some(match => usedCommands.has(match));
       });
 
-      if (missingActions.length > 0) {
-        setFeedback({
-          type: "fail",
-          msg: `Text is correct, but these Vim actions were not tracked: ${missingActions.map(action => action.label).join(", ")}.`,
-        });
-        return;
-      }
+      const actionsPassed = missingActions.length === 0;
+      const elapsedSeconds = Math.floor((Date.now() - levelStartedAt) / 1000);
+      const benchmarkSeconds = benchmarkStageTimes[level.id];
+      const timeLimitSeconds = Number.isFinite(benchmarkSeconds)
+        ? Math.max(0, Math.floor(benchmarkSeconds)) + 5
+        : (level.starTimeLimitSeconds || DEFAULT_STAR_TIME_LIMIT_SECONDS);
+      const timePassed = elapsedSeconds <= timeLimitSeconds;
+      const earnedStars = actionsPassed ? (timePassed ? 3 : 2) : 1;
 
       setFeedback({ type: "success", msg: "✓ Correct! Well done." });
       
+      setFeedback({
+        type: "success",
+        msg: actionsPassed
+          ? `Correct. ${earnedStars}/3 stars earned in ${elapsedSeconds}s.`
+          : `Correct text. 1/3 stars earned. Missing actions for 2 stars: ${missingActions.map(action => action.label).join(", ")}.`,
+      });
+
       const newCompleted = [...completedStages];
       if (!newCompleted.includes(level.id)) {
         newCompleted.push(level.id);
       }
       
-      logActivity(`completed Stage ${currentStage + 1}: ${level.title}`);
-      onProgress(currentStage, newCompleted);
+      const bestStars = Math.max(stageStars[level.id] || 0, earnedStars);
+      const newStageStars = { ...stageStars, [level.id]: bestStars };
+      const previousBestTime = stageBestTimes[level.id];
+      const bestTime = Number.isFinite(previousBestTime)
+        ? Math.min(previousBestTime, elapsedSeconds)
+        : elapsedSeconds;
+      const newStageBestTimes = { ...stageBestTimes, [level.id]: bestTime };
+      setLastAwardedStars(earnedStars);
+      setLastElapsedSeconds(elapsedSeconds);
+      setWinnerAnimationSkipped(false);
+      
+      logActivity(`completed Stage ${currentStage + 1}: ${level.title} (${earnedStars}/3 stars)`);
+      onProgress(currentStage, newCompleted, newStageStars, newStageBestTimes);
       
       setTimeout(() => setShowWinner(true), 400);
     } else {
@@ -126,6 +172,12 @@ export default function GameScreen({ user, currentStage, completedStages, adminU
   const terminalInputBeforeCursor = currentInput.slice(0, terminalCursorIndex);
   const terminalCursorChar = currentInput[terminalCursorIndex] || "\u00a0";
   const terminalInputAfterCursor = currentInput.slice(terminalCursorIndex + 1);
+  const currentBestStars = level && !openedReadme ? stageStars[level.id] || 0 : 0;
+  const benchmarkTimeSeconds = level && !openedReadme ? benchmarkStageTimes[level.id] : undefined;
+  const starTimeLimitSeconds = Number.isFinite(benchmarkTimeSeconds)
+    ? Math.max(0, Math.floor(benchmarkTimeSeconds)) + 5
+    : (level?.starTimeLimitSeconds || DEFAULT_STAR_TIME_LIMIT_SECONDS);
+  const renderStars = (count: number) => "★".repeat(count) + "☆".repeat(3 - count);
 
   const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
     setScrollPosition({
@@ -196,6 +248,12 @@ export default function GameScreen({ user, currentStage, completedStages, adminU
   useEffect(() => {
     if (level) {
       setFeedback(null);
+      if (!isTerminal && !openedReadme) {
+        setLevelStartedAt(Date.now());
+        setLastAwardedStars(0);
+        setLastElapsedSeconds(0);
+        setWinnerAnimationSkipped(false);
+      }
       
       // Auto-focus editor on stage load
       if (vim.textareaRef.current && !isTerminal) {
@@ -228,12 +286,16 @@ export default function GameScreen({ user, currentStage, completedStages, adminU
     const handleWinnerKeyDown = (e: globalThis.KeyboardEvent) => {
       if (e.key !== "Enter") return;
       e.preventDefault();
+      if (!winnerAnimationSkipped) {
+        setWinnerAnimationSkipped(true);
+        return;
+      }
       handleDismissWinner();
     };
 
     window.addEventListener("keydown", handleWinnerKeyDown);
     return () => window.removeEventListener("keydown", handleWinnerKeyDown);
-  }, [showWinner, currentStage, completedStages, adminUnlockedStageLimit, level]);
+  }, [showWinner, winnerAnimationSkipped, currentStage, completedStages, adminUnlockedStageLimit, level]);
 
   if (!level) return null;
 
@@ -351,6 +413,10 @@ export default function GameScreen({ user, currentStage, completedStages, adminU
                 <div className="task-box">
                   <div className="task-label">Your Task</div>
                   <div className="task-goal" dangerouslySetInnerHTML={{ __html: level.task }}></div>
+                  <div className="stage-score-row">
+                    <span>Best: <span className="stage-stars">{renderStars(currentBestStars)}</span></span>
+                    <span>3-star time: {starTimeLimitSeconds}s</span>
+                  </div>
                   {feedback && (
                     <div className={`feedback ${feedback.type}`} style={{display: 'block'}}>
                       {feedback.msg}
@@ -427,7 +493,7 @@ export default function GameScreen({ user, currentStage, completedStages, adminU
 
       {/* Winner Modal */}
       {showWinner && (
-        <div className="winner-overlay show">
+        <div className={`winner-overlay show ${winnerAnimationSkipped ? "skip-stars" : ""}`}>
           <div className="winner-box">
             <div className="winner-title">{currentStage + 1 < LEVELS.length ? "🎉 Stage Clear!" : "🏆 All Done!"}</div>
             <div className="winner-sub">
@@ -436,6 +502,27 @@ export default function GameScreen({ user, currentStage, completedStages, adminU
                   ? `"${level.title}" complete. Ready for the next challenge?`
                   : `"${level.title}" complete. Waiting for Instructor to unlock the next stage...`)
                 : "You've completed all stages. You're a VIM ninja! 🥷"}
+            </div>
+            <div className="winner-stars">
+              <div className="winner-star-row" aria-label={`${lastAwardedStars} out of 3 stars`}>
+                {[0, 1, 2].map(index => (
+                  <span
+                    key={index}
+                    className="winner-star-slot"
+                  >
+                    <span className="winner-star-outline">{"\u2606"}</span>
+                    {index < lastAwardedStars && (
+                      <span
+                        className="winner-star-fill"
+                        style={{ animationDelay: `${index * 650}ms` }}
+                      >
+                        {"\u2605"}
+                      </span>
+                    )}
+                  </span>
+                ))}
+              </div>
+              <span>{lastAwardedStars}/3 stars - {lastElapsedSeconds}s</span>
             </div>
             <button className="btn btn-primary" style={{marginTop:"1.5rem", width:"auto", padding:".6rem 2rem"}} onClick={handleDismissWinner}>
               {currentStage + 1 < LEVELS.length && currentStage + 1 > adminUnlockedStageLimit ? "Close" : "Continue →"}
@@ -446,3 +533,4 @@ export default function GameScreen({ user, currentStage, completedStages, adminU
     </div>
   );
 }
+

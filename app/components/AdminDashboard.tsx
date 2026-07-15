@@ -35,6 +35,9 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
 
   const activePlayers = playersList.filter(p => p.lastActive > fiveMinAgo).length;
   const completedPlayers = playersList.filter(p => p.completedStages?.length === totalLevels).length;
+  const starTotal = (player: PlayerData) => Object.values(player.stageStars || {}).reduce((sum, stars) => sum + stars, 0);
+  const maxStars = totalLevels * 3;
+  const bestTimeTotal = (player: PlayerData) => Object.values(player.stageBestTimes || {}).reduce((sum, seconds) => sum + seconds, 0);
 
   return (
     <div id="screen-admin" className="screen active">
@@ -57,7 +60,7 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
                 <div key={p.playerKey} className="player-card">
                   <div className="pc-name">{active && <span className="online-dot"></span>}{p.username || p.name}</div>
                   {p.email && <div className="pc-meta">{p.email}</div>}
-                  <div className="pc-meta">{p.completedStages?.length || 0}/{totalLevels} stages done</div>
+                  <div className="pc-meta">{p.completedStages?.length || 0}/{totalLevels} stages done · {starTotal(p)}/{maxStars} stars · {bestTimeTotal(p)}s best</div>
                   <div className="pc-stage">S{stageNum}</div>
                   <button
                     className="btn btn-danger"
@@ -117,6 +120,7 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
                 <th>Email</th>
                 <th>Stage</th>
                 <th>Progress</th>
+                <th>Stars</th>
                 <th>Status</th>
                 <th>Last Active</th>
                 <th>Actions</th>
@@ -125,7 +129,7 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
             <tbody>
               {playersList.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{color:"var(--muted)", textAlign:"center", padding:"2rem"}}>
+                  <td colSpan={8} style={{color:"var(--muted)", textAlign:"center", padding:"2rem"}}>
                     Waiting for players to join...
                   </td>
                 </tr>
@@ -147,6 +151,7 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
                         <span style={{fontSize:".7rem", color:"var(--muted)"}}>{pct}%</span>
                       </div>
                     </td>
+                    <td style={{color:"var(--yellow)", fontSize:".72rem"}}>{starTotal(p)}/{maxStars}</td>
                     <td>
                       {done === totalLevels ? (
                         <span className="badge badge-green">Done</span>

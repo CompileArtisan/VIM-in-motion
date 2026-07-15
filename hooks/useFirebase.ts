@@ -5,6 +5,8 @@ import { ref, set, get, onValue, push, update } from 'firebase/database';
 export interface StageData {
   currentStage: number;
   completedStages: string[];
+  stageStars?: Record<string, number>;
+  stageBestTimes?: Record<string, number>;
   totalStages: number;
 }
 
@@ -26,6 +28,7 @@ export function useFirebasePlayer(playerName: string | undefined) {
   const [playerData, setPlayerData] = useState<PlayerData | null>(null);
   const [isFirebaseReady, setIsFirebaseReady] = useState(false);
   const [adminUnlockedStageLimit, setAdminUnlockedStageLimit] = useState<number>(0);
+  const [vimGodStageTimes, setVimGodStageTimes] = useState<Record<string, number>>({});
 
   useEffect(() => {
     // Only proceed if API key environment variable is available and valid
@@ -44,6 +47,32 @@ export function useFirebasePlayer(playerName: string | undefined) {
     }
   }, [isFirebaseReady]);
 
+  useEffect(() => {
+    if (!isFirebaseReady) return;
+
+    const benchmarkRef = ref(db, 'players/vim_god/stageBestTimes');
+    const unsubscribe = onValue(benchmarkRef, (snapshot) => {
+      setVimGodStageTimes(snapshot.exists() ? snapshot.val() || {} : {});
+    });
+
+    return () => unsubscribe();
+  }, [isFirebaseReady]);
+
+  useEffect(() => {
+    if (!isFirebaseReady || !playerName) {
+      setPlayerData(null);
+      return;
+    }
+
+    const sanitizedName = playerName.replace(/[.#$[\]]/g, '_');
+    const playerRef = ref(db, `players/${sanitizedName}`);
+    const unsubscribe = onValue(playerRef, (snapshot) => {
+      setPlayerData(snapshot.exists() ? snapshot.val() as PlayerData : null);
+    });
+
+    return () => unsubscribe();
+  }, [isFirebaseReady, playerName]);
+
   // Save Progress
   const saveProgress = async (stageData: StageData) => {
     if (!isFirebaseReady || !playerName) return;
@@ -57,6 +86,8 @@ export function useFirebasePlayer(playerName: string | undefined) {
       username: playerName,
       currentStage: stageData.currentStage,
       completedStages: stageData.completedStages,
+      stageStars: stageData.stageStars || {},
+      stageBestTimes: stageData.stageBestTimes || {},
       lastActive: Date.now(),
       totalStages: stageData.totalStages,
     };
@@ -79,6 +110,20 @@ export function useFirebasePlayer(playerName: string | undefined) {
     return null;
   };
 
+  const resetProgress = async (totalStages: number) => {
+    if (!isFirebaseReady || !playerName) return;
+
+    const sanitizedName = playerName.replace(/[.#$[\]]/g, '_');
+    await update(ref(db, `players/${sanitizedName}`), {
+      currentStage: 0,
+      completedStages: [],
+      stageStars: {},
+      stageBestTimes: {},
+      totalStages,
+      lastActive: Date.now(),
+    });
+  };
+
   // Log activity
   const logActivity = (msg: string) => {
     if (!isFirebaseReady || !playerName) return;
@@ -91,7 +136,7 @@ export function useFirebasePlayer(playerName: string | undefined) {
     });
   };
 
-  return { playerData, isFirebaseReady, adminUnlockedStageLimit, saveProgress, loadProgress, logActivity };
+  return { playerData, isFirebaseReady, adminUnlockedStageLimit, vimGodStageTimes, saveProgress, loadProgress, resetProgress, logActivity };
 }
 
 export function useAdminDashboard(isAdmin: boolean | undefined) {

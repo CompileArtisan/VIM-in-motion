@@ -646,7 +646,7 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
 
     // NORMAL MODE
     // Single immediate actions
-    if (buf === "i" || buf === "a" || buf === "v" || buf === "V" || buf === "p" || buf === "u" || buf === "x") {
+    if (buf === "i" || buf === "a" || buf === "v" || buf === "V" || buf === "p" || buf === "u" || buf === "x" || buf === "D") {
       if (buf === "i") {
         setMode("INSERT");
         trackUsage("i", ["mode:insert"]);
@@ -695,6 +695,16 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
         updateCursor(cursor.start);
         lastEditRef.current = "x";
         trackUsage("x", ["delete", "operator:d"]);
+      } else if (buf === "D") {
+        const range = getMotionRange(cursor.start, "$", 1);
+        if (range) {
+          const { start, end } = range;
+          clipboardRef.current = text.slice(start, end);
+          commitHistory(text.slice(0, start) + text.slice(end));
+          updateCursor(start);
+          lastEditRef.current = "D";
+          trackUsage("D", ["d$", "delete", "operator:d", ...getMotionActions("$")]);
+        }
       }
       recordMacroKey(buf);
       bufferRef.current = "";

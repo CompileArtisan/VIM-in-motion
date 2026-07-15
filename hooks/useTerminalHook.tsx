@@ -48,7 +48,7 @@ export function useTerminal(
   completedStages: string[],
   adminUnlockedStageLimit: number,
   onOpenFile?: (filename: string) => void,
-  onReset?: () => void
+  onReset?: () => void | Promise<void>
 ) {
   const [history, setHistory] = useState<ReactNode[]>([]);
   const [currentInput, setCurrentInput] = useState<string>("");
@@ -58,6 +58,7 @@ export function useTerminal(
   const [autocompleteIndex, setAutocompleteIndex] = useState<number>(0);
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState<number>(-1);
+  const [awaitingResetConfirm, setAwaitingResetConfirm] = useState<boolean>(false);
 
   const handleTerminalKeyDown = (
     e: KeyboardEvent<HTMLInputElement> | KeyboardEvent<HTMLTextAreaElement>
@@ -157,6 +158,38 @@ export function useTerminal(
       const newHistory = [...history, `${user?.name || "anonymous"}@vim-in-motion:${cwd}$ ${command}`];
       
       if (!command) {
+        setHistory(newHistory);
+        setCurrentInput("");
+        return;
+      }
+
+      if (awaitingResetConfirm) {
+        const answer = command.toLowerCase();
+        if (answer === "y" || answer === "yes") {
+          setAwaitingResetConfirm(false);
+          newHistory.push("Resetting Firebase progress...");
+          setHistory(newHistory);
+          setCurrentInput("");
+          Promise.resolve(onReset?.())
+            .then(() => {
+              setHistory(prev => [...prev, "Progress reset. Stage completion, stars, and best times are cleared in Firebase."]);
+              setCwd("~");
+              setIsTerminal(true);
+            })
+            .catch(() => {
+              setHistory(prev => [...prev, "reset: failed to reset Firebase progress"]);
+            });
+          return;
+        }
+        if (answer === "n" || answer === "no") {
+          setAwaitingResetConfirm(false);
+          newHistory.push("Reset cancelled.");
+          setHistory(newHistory);
+          setCurrentInput("");
+          return;
+        }
+
+        newHistory.push("Please type y to confirm or n to cancel.");
         setHistory(newHistory);
         setCurrentInput("");
         return;
@@ -267,16 +300,14 @@ export function useTerminal(
           setCurrentInput("");
           return;
         case "reset":
-          localStorage.clear();
-          setHistory([]);
-          setCommandHistory([]);
-          setHistoryIndex(-1);
-          setAutocompleteOptions([]);
-          setAutocompleteIndex(0);
+          newHistory.push(
+            "Warning: this will reset your Firebase progress for this account.",
+            "Completed stages, stars, and best times will be cleared.",
+            "Continue? y/n"
+          );
+          setAwaitingResetConfirm(true);
+          setHistory(newHistory);
           setCurrentInput("");
-          setCwd("~");
-          setIsTerminal(true);
-          if (onReset) onReset();
           return;
         case "help":
           newHistory.push(
@@ -286,7 +317,7 @@ export function useTerminal(
             "  cat    - Print file contents",
             "  vim    - Edit a file (e.g., vim stage-1.level)",
             "  clear  - Clear terminal output",
-            "  reset  - Clear local storage and restart the app session",
+            "  reset  - Reset Firebase progress after y/n confirmation",
             "  sudo   - Execute a command as superuser",
             "  help   - Show this help message"
           );

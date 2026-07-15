@@ -109,6 +109,8 @@ export default function Home() {
   // Game state
   const [currentStage, setCurrentStage] = useState(0);
   const [completedStages, setCompletedStages] = useState<string[]>([]);
+  const [stageStars, setStageStars] = useState<Record<string, number>>({});
+  const [stageBestTimes, setStageBestTimes] = useState<Record<string, number>>({});
 
   // Login inputs
   const [loginIdentifier, setLoginIdentifier] = useState("");
@@ -122,7 +124,16 @@ export default function Home() {
   const [adminPass, setAdminPass] = useState("");
   const [adminError, setAdminError] = useState("");
 
-  const { isFirebaseReady, saveProgress, loadProgress, logActivity, adminUnlockedStageLimit } = useFirebasePlayer(user?.username || user?.name);
+  const {
+    playerData,
+    isFirebaseReady,
+    saveProgress,
+    loadProgress,
+    resetProgress,
+    logActivity,
+    adminUnlockedStageLimit,
+    vimGodStageTimes
+  } = useFirebasePlayer(user?.username || user?.name);
   const adminData = useAdminDashboard(user?.isAdmin);
 
   // Restore session
@@ -235,6 +246,8 @@ export default function Home() {
       passwordHash: await hashPassword(password),
       currentStage: 0,
       completedStages: [],
+      stageStars: {},
+      stageBestTimes: {},
       totalStages: LEVELS.length,
       lastActive: Date.now(),
     };
@@ -266,6 +279,8 @@ export default function Home() {
     setUser(null);
     setCurrentStage(0);
     setCompletedStages([]);
+    setStageStars({});
+    setStageBestTimes({});
     setLoginIdentifier("");
     setLoginPassword("");
     setSignupUsername("");
@@ -277,22 +292,13 @@ export default function Home() {
     localStorage.removeItem("vim-session-user");
   };
 
-  const handleReset = () => {
-    localStorage.clear();
-    setUser(null);
+  const handleReset = async () => {
+    await resetProgress(LEVELS.length);
     setCurrentStage(0);
     setCompletedStages([]);
-    setLoginIdentifier("");
-    setLoginPassword("");
-    setSignupUsername("");
-    setSignupEmail("");
-    setSignupPassword("");
-    setLoginError("");
-    setSignupError("");
-    setAdminUsername("");
-    setAdminPass("");
-    setAdminError("");
-    setScreen("login");
+    setStageStars({});
+    setStageBestTimes({});
+    logActivity("reset workshop progress");
   };
 
   // Automatically wrap load progress on user set
@@ -302,20 +308,43 @@ export default function Home() {
         if (saved) {
           setCurrentStage(saved.currentStage || 0);
           setCompletedStages(saved.completedStages || []);
+          setStageStars(saved.stageStars || {});
+          setStageBestTimes(saved.stageBestTimes || {});
         } else {
           // Initialize new game progress
-           saveProgress({ currentStage: 0, completedStages: [], totalStages: LEVELS.length });
+           saveProgress({ currentStage: 0, completedStages: [], stageStars: {}, stageBestTimes: {}, totalStages: LEVELS.length });
            logActivity("joined the workshop");
         }
       });
     }
   }, [user, isFirebaseReady]);
 
+  useEffect(() => {
+    if (!user || user.isAdmin || !playerData) return;
+    setCurrentStage(playerData.currentStage || 0);
+    setCompletedStages(playerData.completedStages || []);
+    setStageStars(playerData.stageStars || {});
+    setStageBestTimes(playerData.stageBestTimes || {});
+  }, [user, playerData]);
+
   // Sync state upward when game ticks
-  const onGameProgress = (newStage: number, newCompleted: string[]) => {
+  const onGameProgress = (
+    newStage: number,
+    newCompleted: string[],
+    newStageStars = stageStars,
+    newStageBestTimes = stageBestTimes
+  ) => {
     setCurrentStage(newStage);
     setCompletedStages(newCompleted);
-    saveProgress({ currentStage: newStage, completedStages: newCompleted, totalStages: LEVELS.length });
+    setStageStars(newStageStars);
+    setStageBestTimes(newStageBestTimes);
+    saveProgress({
+      currentStage: newStage,
+      completedStages: newCompleted,
+      stageStars: newStageStars,
+      stageBestTimes: newStageBestTimes,
+      totalStages: LEVELS.length,
+    });
   };
 
   return (
@@ -438,6 +467,9 @@ export default function Home() {
           user={user} 
           currentStage={currentStage} 
           completedStages={completedStages} 
+          stageStars={stageStars}
+          stageBestTimes={stageBestTimes}
+          benchmarkStageTimes={vimGodStageTimes}
           adminUnlockedStageLimit={adminUnlockedStageLimit}
           onProgress={onGameProgress}
           logActivity={logActivity}
