@@ -24,6 +24,8 @@ interface GameScreenProps {
 }
 
 const DEFAULT_STAR_TIME_LIMIT_SECONDS = 180;
+const WINNER_STAR_ANIMATION_MS = 1800;
+const WINNER_STAR_STAGGER_MS = 650;
 
 export default function GameScreen({
   user,
@@ -298,6 +300,18 @@ export default function GameScreen({
     return () => window.removeEventListener("keydown", handleWinnerKeyDown);
   }, [showWinner, winnerAnimationSkipped, currentStage, completedStages, adminUnlockedStageLimit, level]);
 
+  useEffect(() => {
+    if (!showWinner || winnerAnimationSkipped) return;
+
+    const earnedStarCount = Math.max(1, lastAwardedStars);
+    const animationMs = WINNER_STAR_ANIMATION_MS + (earnedStarCount - 1) * WINNER_STAR_STAGGER_MS + 100;
+    const timer = window.setTimeout(() => {
+      setWinnerAnimationSkipped(true);
+    }, animationMs);
+
+    return () => window.clearTimeout(timer);
+  }, [showWinner, winnerAnimationSkipped, lastAwardedStars]);
+
   if (!level) return null;
 
   return (
@@ -517,7 +531,7 @@ export default function GameScreen({
                     {index < lastAwardedStars && (
                       <span
                         className="winner-star-fill"
-                        style={{ animationDelay: `${index * 650}ms` }}
+                        style={{ animationDelay: `${index * WINNER_STAR_STAGGER_MS}ms` }}
                       >
                         {"\u2605"}
                       </span>
