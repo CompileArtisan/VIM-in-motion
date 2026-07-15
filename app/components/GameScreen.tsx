@@ -333,7 +333,7 @@ export default function GameScreen({
                 return <div key={i} style={{ whiteSpace: "pre-wrap", fontSize: "1rem", minHeight: "1.5rem", display: "flex", alignItems: "center" }}>{line}</div>;
               })}
               <div style={{ display: "flex", alignItems: "center", minHeight: "1.5rem", position: "relative" }}>
-                <span style={{ marginRight: "0.5rem", color: "#4af626", fontSize: "1rem" }}>
+                <span style={{ marginRight: "0.5rem", color: awaitingResetConfirm ? "#d4d4d4" : "#4af626", fontSize: "1rem" }}>
                   {awaitingResetConfirm ? "Continue? y/n:" : `${user?.name || "anonymous"}@vim-in-motion:${cwd}$`}
                 </span>
                 <div className="terminal-input-wrap">

@@ -63,6 +63,34 @@ export function useTerminal(
   const handleTerminalKeyDown = (
     e: KeyboardEvent<HTMLInputElement> | KeyboardEvent<HTMLTextAreaElement>
   ) => {
+    if (awaitingResetConfirm) {
+      e.preventDefault();
+
+      if (e.key.length !== 1 && e.key !== "Enter" && e.key !== "Escape") return;
+
+      const confirmed = e.key.toLowerCase() === "y";
+      setAwaitingResetConfirm(false);
+      setHistoryIndex(-1);
+      setCurrentInput("");
+
+      if (!confirmed) {
+        setHistory(prev => [...prev, "Reset cancelled."]);
+        return;
+      }
+
+      setHistory(prev => [...prev, "Resetting Firebase progress..."]);
+      Promise.resolve(onReset?.())
+        .then(() => {
+          setHistory(prev => [...prev, "Progress reset. Stage completion, stars, and best times are cleared in Firebase."]);
+          setCwd("~");
+          setIsTerminal(true);
+        })
+        .catch(() => {
+          setHistory(prev => [...prev, "reset: failed to reset Firebase progress"]);
+        });
+      return;
+    }
+
     if (autocompleteOptions.length > 0) {
       if (e.key === "Tab" || e.key === "ArrowDown") {
         e.preventDefault();
@@ -150,41 +178,6 @@ export function useTerminal(
       e.preventDefault();
       
       const command = currentInput.trim();
-
-      if (awaitingResetConfirm) {
-        const newHistory = [...history, `Continue? y/n: ${command}`];
-        const answer = command.toLowerCase();
-        setHistoryIndex(-1);
-
-        if (answer === "y") {
-          setAwaitingResetConfirm(false);
-          newHistory.push("Resetting Firebase progress...");
-          setHistory(newHistory);
-          setCurrentInput("");
-          Promise.resolve(onReset?.())
-            .then(() => {
-              setHistory(prev => [...prev, "Progress reset. Stage completion, stars, and best times are cleared in Firebase."]);
-              setCwd("~");
-              setIsTerminal(true);
-            })
-            .catch(() => {
-              setHistory(prev => [...prev, "reset: failed to reset Firebase progress"]);
-            });
-          return;
-        }
-        if (answer === "n") {
-          setAwaitingResetConfirm(false);
-          newHistory.push("Reset cancelled.");
-          setHistory(newHistory);
-          setCurrentInput("");
-          return;
-        }
-
-        newHistory.push("Please type y or n.");
-        setHistory(newHistory);
-        setCurrentInput("");
-        return;
-      }
 
       if (command) {
         setCommandHistory((prev) => [...prev, command]);
@@ -306,8 +299,7 @@ export function useTerminal(
         case "reset":
           newHistory.push(
             "Warning: this will reset your Firebase progress for this account.",
-            "Completed stages, stars, and best times will be cleared.",
-            "Continue? y/n:"
+            "Completed stages, stars, and best times will be cleared."
           );
           setAwaitingResetConfirm(true);
           setHistory(newHistory);
