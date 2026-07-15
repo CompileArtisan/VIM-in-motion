@@ -150,22 +150,13 @@ export function useTerminal(
       e.preventDefault();
       
       const command = currentInput.trim();
-      if (command) {
-        setCommandHistory((prev) => [...prev, command]);
-      }
-      setHistoryIndex(-1);
-
-      const newHistory = [...history, `${user?.name || "anonymous"}@vim-in-motion:${cwd}$ ${command}`];
-      
-      if (!command) {
-        setHistory(newHistory);
-        setCurrentInput("");
-        return;
-      }
 
       if (awaitingResetConfirm) {
+        const newHistory = [...history, `Continue? y/n: ${command}`];
         const answer = command.toLowerCase();
-        if (answer === "y" || answer === "yes") {
+        setHistoryIndex(-1);
+
+        if (answer === "y") {
           setAwaitingResetConfirm(false);
           newHistory.push("Resetting Firebase progress...");
           setHistory(newHistory);
@@ -181,7 +172,7 @@ export function useTerminal(
             });
           return;
         }
-        if (answer === "n" || answer === "no") {
+        if (answer === "n") {
           setAwaitingResetConfirm(false);
           newHistory.push("Reset cancelled.");
           setHistory(newHistory);
@@ -189,7 +180,20 @@ export function useTerminal(
           return;
         }
 
-        newHistory.push("Please type y to confirm or n to cancel.");
+        newHistory.push("Please type y or n.");
+        setHistory(newHistory);
+        setCurrentInput("");
+        return;
+      }
+
+      if (command) {
+        setCommandHistory((prev) => [...prev, command]);
+      }
+      setHistoryIndex(-1);
+
+      const newHistory = [...history, `${user?.name || "anonymous"}@vim-in-motion:${cwd}$ ${command}`];
+      
+      if (!command) {
         setHistory(newHistory);
         setCurrentInput("");
         return;
@@ -303,7 +307,7 @@ export function useTerminal(
           newHistory.push(
             "Warning: this will reset your Firebase progress for this account.",
             "Completed stages, stars, and best times will be cleared.",
-            "Continue? y/n"
+            "Continue? y/n:"
           );
           setAwaitingResetConfirm(true);
           setHistory(newHistory);
@@ -389,6 +393,7 @@ export function useTerminal(
     handleTerminalKeyDown,
     autocompleteOptions,
     autocompleteIndex,
+    awaitingResetConfirm,
     commandHistory,
     historyIndex
   };
