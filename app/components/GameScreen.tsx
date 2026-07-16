@@ -164,7 +164,7 @@ export default function GameScreen({
       setLastHadPreviousBest(hadPreviousBest);
       setLastSecretRedStar(secretRedStar);
       setWinnerAnimationSkipped(false);
-      setWinnerSelectedAction(shouldOfferRetry ? "retry" : "continue");
+      setWinnerSelectedAction(earnedStars < 3 ? "retry" : "continue");
       
       logActivity(`completed Stage ${currentStage + 1}: ${level.title} (${earnedStars}/3 stars${secretRedStar ? " + secret" : ""})`);
       onProgress(currentStage, newCompleted, newStageStars, newStageBestTimes, newStageSecretStars);

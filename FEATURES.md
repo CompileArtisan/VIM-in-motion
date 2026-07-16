@@ -21,6 +21,7 @@ This document lists the features currently implemented in the online Vim editor/
 - The stage-clear popup shows which stars were earned and why any missed star was not awarded.
 - Reattempting a level shows `NEW PB!` with the current time when the player beats their previous best time for that level.
 - The stage-clear popup shows a Retry action when any normal star is missing or when a reattempt does not beat the player's previous best time.
+- If Retry appears only because PB was missed after earning all three stars, Continue is selected by default.
 - Beating `vim_god`'s raw best time awards a secret fourth red star.
 - If `vim_god` has not completed that level yet, the secret red star target falls back to 180 seconds.
 - The secret red star is stored separately from the normal three-star score and appears off-center without an outline.
