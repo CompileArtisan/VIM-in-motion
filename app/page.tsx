@@ -19,7 +19,7 @@ interface User {
   isAdmin: boolean;
 }
 
-const STUDENT_EMAIL_PATTERN = /^bl\.en\.u4[a-z0-9]{8}$/i;
+const STUDENT_EMAIL_PATTERN = /^bl\.(en|sc)\.u4[a-z0-9]{8}$/i;
 
 const sanitizeFirebaseKey = (value: string) => value.replace(/[.#$[\]]/g, "_");
 
@@ -208,7 +208,7 @@ export default function Home() {
       return;
     }
     if (!STUDENT_EMAIL_PATTERN.test(email)) {
-      setSignupError('Email must match "bl.en.u4xxxxxxxx"');
+      setSignupError('Email must match "bl.en.u4xxxxxxxx" or "bl.sc.u4xxxxxxxx"');
       return;
     }
     if (password.length < 6) {
@@ -367,7 +367,7 @@ export default function Home() {
             <label>Username or Email</label>
             <input 
               type="text" 
-              placeholder="ada_lovelace or bl.en.u4xxxxxxxx" 
+              placeholder="ada_lovelace or bl.en.u4xxxxxxxx / bl.sc.u4xxxxxxxx" 
               value={loginIdentifier}
               onChange={(e) => setLoginIdentifier(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleLoginPlayer()}
@@ -415,7 +415,7 @@ export default function Home() {
             <label>Email</label>
             <input
               type="text"
-              placeholder="bl.en.u4xxxxxxxx"
+              placeholder="bl.en.u4xxxxxxxx or bl.sc.u4xxxxxxxx"
               value={signupEmail}
               onChange={(e) => setSignupEmail(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSignupPlayer()}

@@ -5,7 +5,7 @@ This document lists the features currently implemented in the online Vim editor/
 ## App Flow
 
 - Player account creation with separate username, student email, and password fields.
-- Student email must match `bl.en.u4xxxxxxxx`.
+- Student email must match `bl.en.u4xxxxxxxx` or `bl.sc.u4xxxxxxxx`.
 - Player login accepts either username or email, plus password.
 - Player usernames and emails are unique; one username is mapped to one email.
 - Player information is stored separately from progress in Firebase.
@@ -164,7 +164,7 @@ The app now defines 19 practical Vim core stages:
 ## Instructor Dashboard
 
 - Live player list.
-- Player username and email display.
+- Player username and email display together in admin player labels.
 - Separate player profile page opens by clicking a player card or player table row.
 - Player profile includes a Back button to return to the main admin dashboard.
 - Player profile shows levels completed, total stars, per-level completion, per-level stars, and time taken per level.

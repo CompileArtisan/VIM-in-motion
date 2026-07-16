@@ -44,6 +44,8 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
   const maxStars = totalLevels * 3;
   const bestTimeTotal = (player: PlayerData) => Object.values(player.stageBestTimes || {}).reduce((sum, seconds) => sum + seconds, 0);
   const selectedPlayer = playersList.find(player => player.playerKey === selectedPlayerKey) || playersList[0] || null;
+  const playerName = (player: PlayerData) => player.username || player.name;
+  const playerLabel = (player: PlayerData) => player.email ? `${playerName(player)} (${player.email})` : playerName(player);
 
   const openPlayerProfile = (playerKey: string) => {
     setSelectedPlayerKey(playerKey);
@@ -78,8 +80,7 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
                   className={`player-card ${selectedPlayer?.playerKey === p.playerKey ? "selected" : ""}`}
                   onClick={() => openPlayerProfile(p.playerKey)}
                 >
-                  <div className="pc-name">{active && <span className="online-dot"></span>}{p.username || p.name}</div>
-                  {p.email && <div className="pc-meta">{p.email}</div>}
+                  <div className="pc-name">{active && <span className="online-dot"></span>}{playerLabel(p)}</div>
                   <div className="pc-meta">{p.completedStages?.length || 0}/{totalLevels} stages done · {starTotal(p)}/{maxStars} stars · {bestTimeTotal(p)}s best</div>
                   <div className="pc-stage">S{stageNum}</div>
                   <button
@@ -104,8 +105,8 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
               <button className="btn btn-ghost" onClick={() => setView("dashboard")}>Back</button>
               <div className="player-profile-header">
                 <div>
-                  <div className="player-profile-title">{selectedPlayer.username || selectedPlayer.name}</div>
-                  <div className="player-detail-meta">{selectedPlayer.email || "No email recorded"}</div>
+                  <div className="player-profile-title">{playerLabel(selectedPlayer)}</div>
+                  <div className="player-detail-meta">Username: {playerName(selectedPlayer)} · Email: {selectedPlayer.email || "No email recorded"}</div>
                 </div>
                 <div className="player-detail-summary">
                   <span>{selectedPlayer.completedStages?.length || 0}/{totalLevels} levels complete</span>
@@ -206,7 +207,7 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
 
                 return (
                   <tr key={p.playerKey} onClick={() => openPlayerProfile(p.playerKey)} style={{cursor: "pointer"}}>
-                    <td style={{fontWeight:700}}>{p.username || p.name}</td>
+                    <td style={{fontWeight:700}}>{playerLabel(p)}</td>
                     <td style={{color:"var(--muted)", fontSize:".72rem"}}>{p.email || "-"}</td>
                     <td>
                       <span style={{color:"var(--accent2)"}}>S{(p.currentStage || 0) + 1}</span> 
