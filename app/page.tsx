@@ -111,6 +111,7 @@ export default function Home() {
   const [completedStages, setCompletedStages] = useState<string[]>([]);
   const [stageStars, setStageStars] = useState<Record<string, number>>({});
   const [stageBestTimes, setStageBestTimes] = useState<Record<string, number>>({});
+  const [stageSecretStars, setStageSecretStars] = useState<Record<string, boolean>>({});
 
   // Login inputs
   const [loginIdentifier, setLoginIdentifier] = useState("");
@@ -248,6 +249,7 @@ export default function Home() {
       completedStages: [],
       stageStars: {},
       stageBestTimes: {},
+      stageSecretStars: {},
       totalStages: LEVELS.length,
       lastActive: Date.now(),
     };
@@ -281,6 +283,7 @@ export default function Home() {
     setCompletedStages([]);
     setStageStars({});
     setStageBestTimes({});
+    setStageSecretStars({});
     setLoginIdentifier("");
     setLoginPassword("");
     setSignupUsername("");
@@ -298,6 +301,7 @@ export default function Home() {
     setCompletedStages([]);
     setStageStars({});
     setStageBestTimes({});
+    setStageSecretStars({});
     logActivity("reset workshop progress");
   };
 
@@ -310,9 +314,10 @@ export default function Home() {
           setCompletedStages(saved.completedStages || []);
           setStageStars(saved.stageStars || {});
           setStageBestTimes(saved.stageBestTimes || {});
+          setStageSecretStars(saved.stageSecretStars || {});
         } else {
           // Initialize new game progress
-           saveProgress({ currentStage: 0, completedStages: [], stageStars: {}, stageBestTimes: {}, totalStages: LEVELS.length });
+           saveProgress({ currentStage: 0, completedStages: [], stageStars: {}, stageBestTimes: {}, stageSecretStars: {}, totalStages: LEVELS.length });
            logActivity("joined the workshop");
         }
       });
@@ -325,6 +330,7 @@ export default function Home() {
     setCompletedStages(playerData.completedStages || []);
     setStageStars(playerData.stageStars || {});
     setStageBestTimes(playerData.stageBestTimes || {});
+    setStageSecretStars(playerData.stageSecretStars || {});
   }, [user, playerData]);
 
   // Sync state upward when game ticks
@@ -332,17 +338,20 @@ export default function Home() {
     newStage: number,
     newCompleted: string[],
     newStageStars = stageStars,
-    newStageBestTimes = stageBestTimes
+    newStageBestTimes = stageBestTimes,
+    newStageSecretStars = stageSecretStars
   ) => {
     setCurrentStage(newStage);
     setCompletedStages(newCompleted);
     setStageStars(newStageStars);
     setStageBestTimes(newStageBestTimes);
+    setStageSecretStars(newStageSecretStars);
     saveProgress({
       currentStage: newStage,
       completedStages: newCompleted,
       stageStars: newStageStars,
       stageBestTimes: newStageBestTimes,
+      stageSecretStars: newStageSecretStars,
       totalStages: LEVELS.length,
     });
   };
@@ -469,6 +478,7 @@ export default function Home() {
           completedStages={completedStages} 
           stageStars={stageStars}
           stageBestTimes={stageBestTimes}
+          stageSecretStars={stageSecretStars}
           benchmarkStageTimes={vimGodStageTimes}
           adminUnlockedStageLimit={adminUnlockedStageLimit}
           onProgress={onGameProgress}

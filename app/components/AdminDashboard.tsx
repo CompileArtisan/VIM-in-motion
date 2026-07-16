@@ -40,6 +40,7 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
   const activePlayers = playersList.filter(p => p.lastActive > fiveMinAgo).length;
   const completedPlayers = playersList.filter(p => p.completedStages?.length === totalLevels).length;
   const starTotal = (player: PlayerData) => Object.values(player.stageStars || {}).reduce((sum, stars) => sum + stars, 0);
+  const secretStarTotal = (player: PlayerData) => Object.values(player.stageSecretStars || {}).filter(Boolean).length;
   const maxStars = totalLevels * 3;
   const bestTimeTotal = (player: PlayerData) => Object.values(player.stageBestTimes || {}).reduce((sum, seconds) => sum + seconds, 0);
   const selectedPlayer = playersList.find(player => player.playerKey === selectedPlayerKey) || playersList[0] || null;
@@ -109,6 +110,7 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
                 <div className="player-detail-summary">
                   <span>{selectedPlayer.completedStages?.length || 0}/{totalLevels} levels complete</span>
                   <span>{starTotal(selectedPlayer)}/{maxStars} stars</span>
+                  <span>{secretStarTotal(selectedPlayer)} secret red stars</span>
                   <span>{bestTimeTotal(selectedPlayer)}s total best time</span>
                 </div>
               </div>
@@ -118,6 +120,7 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
                   const stars = selectedPlayer.stageStars?.[level.id] || 0;
                   const complete = selectedPlayer.completedStages?.includes(level.id);
                   const bestTime = selectedPlayer.stageBestTimes?.[level.id];
+                  const secret = !!selectedPlayer.stageSecretStars?.[level.id];
                   return (
                     <div key={level.id} className={`level-star-row ${complete ? "complete" : ""}`}>
                       <div className="level-star-main">
@@ -125,7 +128,10 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
                         <span className="level-star-title">{level.title}</span>
                       </div>
                       <div className="level-star-meta">
-                        <span className="level-star-icons">{"\u2605".repeat(stars)}{"\u2606".repeat(3 - stars)}</span>
+                        <span className="level-star-icons">
+                          {"\u2605".repeat(stars)}{"\u2606".repeat(3 - stars)}
+                          {secret && <span className="level-secret-star"> {"\u2605"}</span>}
+                        </span>
                         <span>{complete ? "Complete" : "Incomplete"}</span>
                         <span>{Number.isFinite(bestTime) ? `${bestTime}s taken` : "No time"}</span>
                       </div>
@@ -211,7 +217,7 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
                         <span style={{fontSize:".7rem", color:"var(--muted)"}}>{pct}%</span>
                       </div>
                     </td>
-                    <td style={{color:"var(--yellow)", fontSize:".72rem"}}>{starTotal(p)}/{maxStars}</td>
+                    <td style={{color:"var(--yellow)", fontSize:".72rem"}}>{starTotal(p)}/{maxStars}{secretStarTotal(p) > 0 ? ` +${secretStarTotal(p)} secret` : ""}</td>
                     <td>
                       {done === totalLevels ? (
                         <span className="badge badge-green">Done</span>

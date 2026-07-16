@@ -7,6 +7,7 @@ export interface StageData {
   completedStages: string[];
   stageStars?: Record<string, number>;
   stageBestTimes?: Record<string, number>;
+  stageSecretStars?: Record<string, boolean>;
   totalStages: number;
 }
 
@@ -88,6 +89,7 @@ export function useFirebasePlayer(playerName: string | undefined) {
       completedStages: stageData.completedStages,
       stageStars: stageData.stageStars || {},
       stageBestTimes: stageData.stageBestTimes || {},
+      stageSecretStars: stageData.stageSecretStars || {},
       lastActive: Date.now(),
       totalStages: stageData.totalStages,
     };
@@ -119,6 +121,7 @@ export function useFirebasePlayer(playerName: string | undefined) {
       completedStages: [],
       stageStars: {},
       stageBestTimes: {},
+      stageSecretStars: {},
       totalStages,
       lastActive: Date.now(),
     });

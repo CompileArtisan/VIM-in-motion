@@ -14,10 +14,14 @@ This document lists the features currently implemented in the online Vim editor/
 - Simulated terminal entry point before opening stage files.
 - Stage completion through `:wq`.
 - Pressing Enter on the stage-clear dialog triggers the Continue/Close action.
-- Completed stages award 1-3 stars:
+- Completed stages award three independent stars:
   - 1 star for matching the target text.
-  - 2 stars for matching the target text and using the expected Vim actions.
-  - 3 stars for also finishing within the stage time limit.
+  - 1 star for using the expected Vim actions.
+  - 1 star for finishing within the stage time limit.
+- The stage-clear popup shows which stars were earned and why any missed star was not awarded.
+- Reattempting a level shows `NEW PB!` with the current time when the player beats their previous best time for that level.
+- Beating `vim_god`'s raw best time awards a secret fourth red star.
+- The secret red star is stored separately from the normal three-star score and appears off-center without an outline.
 - Stage time limits use `vim_god` benchmarks when available: `vim_god`'s best time for that stage plus 15 seconds.
 - If `vim_god` or a stage benchmark is unavailable, the default 3-star time limit is 180 seconds.
 - The best star count per stage is saved with player progress.

@@ -10,13 +10,15 @@ interface GameScreenProps {
   completedStages: string[];
   stageStars: Record<string, number>;
   stageBestTimes: Record<string, number>;
+  stageSecretStars: Record<string, boolean>;
   benchmarkStageTimes: Record<string, number>;
   adminUnlockedStageLimit: number;
   onProgress: (
     newStage: number,
     completed: string[],
     stageStars?: Record<string, number>,
-    stageBestTimes?: Record<string, number>
+    stageBestTimes?: Record<string, number>,
+    stageSecretStars?: Record<string, boolean>
   ) => void;
   logActivity: (msg: string) => void;
   onLogout: () => void;
@@ -27,6 +29,7 @@ const DEFAULT_STAR_TIME_LIMIT_SECONDS = 180;
 const VIM_GOD_TIME_BONUS_SECONDS = 15;
 const WINNER_STAR_ANIMATION_MS = 1800;
 const WINNER_STAR_STAGGER_MS = 650;
+type StarResult = { id: "text" | "actions" | "time"; label: string; earned: boolean; detail: string };
 
 export default function GameScreen({
   user,
@@ -34,6 +37,7 @@ export default function GameScreen({
   completedStages,
   stageStars,
   stageBestTimes,
+  stageSecretStars,
   benchmarkStageTimes,
   adminUnlockedStageLimit,
   onProgress,
@@ -46,7 +50,10 @@ export default function GameScreen({
   const [winnerAnimationSkipped, setWinnerAnimationSkipped] = useState(false);
   const [winnerSelectedAction, setWinnerSelectedAction] = useState<"retry" | "continue">("continue");
   const [lastAwardedStars, setLastAwardedStars] = useState(0);
+  const [lastStarResults, setLastStarResults] = useState<StarResult[]>([]);
   const [lastElapsedSeconds, setLastElapsedSeconds] = useState(0);
+  const [lastIsPersonalBest, setLastIsPersonalBest] = useState(false);
+  const [lastSecretRedStar, setLastSecretRedStar] = useState(false);
   const [scrollPosition, setScrollPosition] = useState({ scrollTop: 0, scrollLeft: 0 });
   const [showNoArrows, setShowNoArrows] = useState(false);
   const [openedReadme, setOpenedReadme] = useState<"README.md" | "README.org" | null>(null);
@@ -93,15 +100,37 @@ export default function GameScreen({
         ? Math.max(0, Math.floor(benchmarkSeconds)) + VIM_GOD_TIME_BONUS_SECONDS
         : (level.starTimeLimitSeconds || DEFAULT_STAR_TIME_LIMIT_SECONDS);
       const timePassed = elapsedSeconds <= timeLimitSeconds;
-      const earnedStars = actionsPassed ? (timePassed ? 3 : 2) : 1;
+      const starResults: StarResult[] = [
+        {
+          id: "text",
+          label: "Text",
+          earned: true,
+          detail: "Target text matched.",
+        },
+        {
+          id: "actions",
+          label: "Vim actions",
+          earned: actionsPassed,
+          detail: actionsPassed
+            ? "Expected Vim actions were tracked."
+            : `Missing: ${missingActions.map(action => action.label).join(", ")}.`,
+        },
+        {
+          id: "time",
+          label: "Time",
+          earned: timePassed,
+          detail: timePassed
+            ? `Finished in ${elapsedSeconds}s within the ${timeLimitSeconds}s target.`
+            : `Finished in ${elapsedSeconds}s; target was ${timeLimitSeconds}s.`,
+        },
+      ];
+      const earnedStars = starResults.filter(result => result.earned).length;
 
       setFeedback({ type: "success", msg: "✓ Correct! Well done." });
       
       setFeedback({
         type: "success",
-        msg: actionsPassed
-          ? `Correct. ${earnedStars}/3 stars earned in ${elapsedSeconds}s.`
-          : `Correct text. 1/3 stars earned. Missing actions for 2 stars: ${missingActions.map(action => action.label).join(", ")}.`,
+        msg: `Correct. ${earnedStars}/3 stars earned in ${elapsedSeconds}s.`,
       });
 
       const newCompleted = [...completedStages];
@@ -112,17 +141,26 @@ export default function GameScreen({
       const bestStars = Math.max(stageStars[level.id] || 0, earnedStars);
       const newStageStars = { ...stageStars, [level.id]: bestStars };
       const previousBestTime = stageBestTimes[level.id];
+      const isPersonalBest = Number.isFinite(previousBestTime) && elapsedSeconds < previousBestTime;
+      const secretRedStar = Number.isFinite(benchmarkSeconds) && elapsedSeconds < benchmarkSeconds;
       const bestTime = Number.isFinite(previousBestTime)
         ? Math.min(previousBestTime, elapsedSeconds)
         : elapsedSeconds;
       const newStageBestTimes = { ...stageBestTimes, [level.id]: bestTime };
+      const newStageSecretStars = {
+        ...stageSecretStars,
+        [level.id]: !!(stageSecretStars[level.id] || secretRedStar),
+      };
       setLastAwardedStars(earnedStars);
+      setLastStarResults(starResults);
       setLastElapsedSeconds(elapsedSeconds);
+      setLastIsPersonalBest(isPersonalBest);
+      setLastSecretRedStar(secretRedStar);
       setWinnerAnimationSkipped(false);
       setWinnerSelectedAction(earnedStars < 2 ? "retry" : "continue");
       
-      logActivity(`completed Stage ${currentStage + 1}: ${level.title} (${earnedStars}/3 stars)`);
-      onProgress(currentStage, newCompleted, newStageStars, newStageBestTimes);
+      logActivity(`completed Stage ${currentStage + 1}: ${level.title} (${earnedStars}/3 stars${secretRedStar ? " + secret" : ""})`);
+      onProgress(currentStage, newCompleted, newStageStars, newStageBestTimes, newStageSecretStars);
       
       setTimeout(() => setShowWinner(true), 400);
     } else {
@@ -258,7 +296,10 @@ export default function GameScreen({
       if (!isTerminal && !openedReadme) {
         setLevelStartedAt(Date.now());
         setLastAwardedStars(0);
+        setLastStarResults([]);
         setLastElapsedSeconds(0);
+        setLastIsPersonalBest(false);
+        setLastSecretRedStar(false);
         setWinnerAnimationSkipped(false);
       }
       
@@ -292,6 +333,9 @@ export default function GameScreen({
     setFeedback(null);
     setWinnerAnimationSkipped(false);
     setWinnerSelectedAction("continue");
+    setLastStarResults([]);
+    setLastIsPersonalBest(false);
+    setLastSecretRedStar(false);
     setLevelStartedAt(Date.now());
     setVimResetToken(prev => prev + 1);
     setIsTerminal(false);
@@ -330,14 +374,15 @@ export default function GameScreen({
   useEffect(() => {
     if (!showWinner || winnerAnimationSkipped) return;
 
-    const earnedStarCount = Math.max(1, lastAwardedStars);
-    const animationMs = WINNER_STAR_ANIMATION_MS + (earnedStarCount - 1) * WINNER_STAR_STAGGER_MS + 100;
+    const lastEarnedIndex = Math.max(0, ...lastStarResults.map((result, index) => result.earned ? index : -1));
+    const animationIndex = lastSecretRedStar ? 3 : lastEarnedIndex;
+    const animationMs = WINNER_STAR_ANIMATION_MS + animationIndex * WINNER_STAR_STAGGER_MS + 100;
     const timer = window.setTimeout(() => {
       setWinnerAnimationSkipped(true);
     }, animationMs);
 
     return () => window.clearTimeout(timer);
-  }, [showWinner, winnerAnimationSkipped, lastAwardedStars]);
+  }, [showWinner, winnerAnimationSkipped, lastStarResults, lastSecretRedStar]);
 
   if (!level) return null;
 
@@ -549,13 +594,17 @@ export default function GameScreen({
             </div>
             <div className="winner-stars">
               <div className="winner-star-row" aria-label={`${lastAwardedStars} out of 3 stars`}>
-                {[0, 1, 2].map(index => (
+                {[0, 1, 2].map(index => {
+                  const result = lastStarResults[index];
+                  const earned = !!result?.earned;
+                  return (
                   <span
                     key={index}
                     className="winner-star-slot"
+                    title={result?.label}
                   >
                     <span className="winner-star-outline">{"\u2606"}</span>
-                    {index < lastAwardedStars && (
+                    {earned && (
                       <span
                         className="winner-star-fill"
                         style={{ animationDelay: `${index * WINNER_STAR_STAGGER_MS}ms` }}
@@ -564,9 +613,30 @@ export default function GameScreen({
                       </span>
                     )}
                   </span>
-                ))}
+                  );
+                })}
+                {lastSecretRedStar && (
+                  <span
+                    className="winner-secret-star"
+                    style={{ animationDelay: `${3 * WINNER_STAR_STAGGER_MS}ms` }}
+                    title="Beat vim_god"
+                  >
+                    {"\u2605"}
+                  </span>
+                )}
               </div>
               <span>{lastAwardedStars}/3 stars - {lastElapsedSeconds}s</span>
+              {lastIsPersonalBest && (
+                <span className="winner-pb">NEW PB! {lastElapsedSeconds}s</span>
+              )}
+            </div>
+            <div className="winner-star-breakdown">
+              {lastStarResults.map(result => (
+                <div key={result.id} className={`winner-star-reason ${result.earned ? "earned" : "missed"}`}>
+                  <span>{result.earned ? "\u2713" : "\u2715"} {result.label}</span>
+                  <span>{result.detail}</span>
+                </div>
+              ))}
             </div>
             {lastAwardedStars < 2 ? (
               <div className="winner-actions">
