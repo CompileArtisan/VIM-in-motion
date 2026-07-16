@@ -29,6 +29,8 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
   const awaitingMacroRegisterRef = useRef(false);
   const lastMacroRegisterRef = useRef<string | null>(null);
   const replayingMacroRef = useRef(false);
+  const visualLineAnchorRef = useRef<number | null>(null);
+  const visualLineFocusRef = useRef<number | null>(null);
 
   useEffect(() => {
     setText(initialText);
@@ -46,6 +48,8 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
     macroRecordingRef.current = null;
     awaitingMacroRegisterRef.current = false;
     lastMacroRegisterRef.current = null;
+    visualLineAnchorRef.current = null;
+    visualLineFocusRef.current = null;
   }, [initialText, resetToken]);
 
   const trackUsage = (command: string, actions: string[] = []) => {
@@ -258,14 +262,10 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
     return { start, end };
   };
 
-  const getLineRangeByMotion = (pos: number, motion: "j" | "k", count: number) => {
+  const getLineRangeByIndexes = (lineA: number, lineB: number) => {
     const lines = text.split("\n");
-    const info = getLineInfo(pos);
-    const targetLine = motion === "j"
-      ? Math.min(lines.length - 1, info.lineIndex + count)
-      : Math.max(0, info.lineIndex - count);
-    const startLine = Math.min(info.lineIndex, targetLine);
-    const endLine = Math.max(info.lineIndex, targetLine);
+    const startLine = Math.max(0, Math.min(lineA, lineB));
+    const endLine = Math.min(lines.length - 1, Math.max(lineA, lineB));
 
     let start = 0;
     for (let i = 0; i < startLine; i++) {
@@ -279,6 +279,21 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
     }
 
     return { start, end };
+  };
+
+  const setVisualLineSelection = (anchorLine: number, focusLine: number) => {
+    visualLineAnchorRef.current = anchorLine;
+    visualLineFocusRef.current = focusLine;
+    setCursor(getLineRangeByIndexes(anchorLine, focusLine));
+  };
+
+  const getLineRangeByMotion = (pos: number, motion: "j" | "k", count: number) => {
+    const lines = text.split("\n");
+    const info = getLineInfo(pos);
+    const targetLine = motion === "j"
+      ? Math.min(lines.length - 1, info.lineIndex + count)
+      : Math.max(0, info.lineIndex - count);
+    return getLineRangeByIndexes(info.lineIndex, targetLine);
   };
 
   const getLinewisePasteText = () => clipboardRef.current.endsWith("\n")
@@ -544,6 +559,8 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
     if (key === "Escape") {
       bufferRef.current = "";
       setMode("NORMAL");
+      visualLineAnchorRef.current = null;
+      visualLineFocusRef.current = null;
       updateCursor(cursor.start);
       trackUsage("Esc", ["mode:normal"]);
       recordMacroKey("Esc");
@@ -640,17 +657,59 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
     }
     
     // VISUAL MODE
-    if (mode === "VISUAL" || mode === "VISUAL_LINE") {
+    if (mode === "VISUAL_LINE") {
+      if (buf === "d" || buf === "y" || buf === "x") {
+        const start = Math.min(cursor.start, cursor.end);
+        const end = Math.max(cursor.start, cursor.end);
+        clipboardRef.current = text.slice(start, end);
+        clipboardKindRef.current = "line";
+
+        if (buf !== "y") {
+          commitHistory(text.slice(0, start) + text.slice(end));
+        }
+        setMode("NORMAL");
+        visualLineAnchorRef.current = null;
+        visualLineFocusRef.current = null;
+        updateCursor(start);
+        trackUsage(buf, [
+          "visual",
+          "mode:visual-line",
+          "line",
+          buf === "y" ? "operator:y" : "operator:d",
+          buf === "y" ? "yank" : "delete",
+        ]);
+        recordMacroKey(buf);
+        bufferRef.current = "";
+        return;
+      }
+
+      if (key === "j" || key === "k") {
+        const lines = text.split("\n");
+        const anchorLine = visualLineAnchorRef.current ?? getLineInfo(cursor.start).lineIndex;
+        const focusLine = visualLineFocusRef.current ?? anchorLine;
+        const nextFocus = key === "j"
+          ? Math.min(lines.length - 1, focusLine + 1)
+          : Math.max(0, focusLine - 1);
+        setVisualLineSelection(anchorLine, nextFocus);
+        trackUsage(key, ["visual", "mode:visual-line", ...getMotionActions(key)]);
+        recordMacroKey(key);
+        bufferRef.current = "";
+      }
+      bufferRef.current = "";
+      return;
+    }
+
+    if (mode === "VISUAL") {
       if (buf === "d" || buf === "y" || buf === "x") {
         const start = Math.min(cursor.start, cursor.end);
         const end = Math.max(cursor.start, cursor.end);
         
         if (buf === "y") {
            clipboardRef.current = text.slice(start, end);
-           clipboardKindRef.current = mode === "VISUAL_LINE" ? "line" : "char";
+           clipboardKindRef.current = "char";
         } else {
            clipboardRef.current = text.slice(start, end);
-           clipboardKindRef.current = mode === "VISUAL_LINE" ? "line" : "char";
+           clipboardKindRef.current = "char";
            commitHistory(text.slice(0, start) + text.slice(end));
         }
         setMode("NORMAL");
@@ -713,7 +772,7 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
       } else if (buf === "V") {
         setMode("VISUAL_LINE");
         const info = getLineInfo(cursor.start);
-        setCursor({ start: info.lineStart, end: info.lineEnd });
+        setVisualLineSelection(info.lineIndex, info.lineIndex);
         trackUsage("V", ["visual", "mode:visual-line"]);
       } else if (buf === "p") {
         if (clipboardKindRef.current === "line") {

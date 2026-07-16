@@ -95,6 +95,7 @@ Current instructor credentials:
 - `v` starts character-wise selection.
 - `V` starts line-wise selection.
 - Motions adjust visual selection.
+- In Visual Line mode, `j` and `k` expand the selection by whole lines, including the final selected line character and line break when present.
 - `d`, `x`, and `y` act on the selected range.
 
 ## Text Objects
