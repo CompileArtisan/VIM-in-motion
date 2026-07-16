@@ -53,6 +53,7 @@ export default function GameScreen({
   const [lastStarResults, setLastStarResults] = useState<StarResult[]>([]);
   const [lastElapsedSeconds, setLastElapsedSeconds] = useState(0);
   const [lastIsPersonalBest, setLastIsPersonalBest] = useState(false);
+  const [lastHadPreviousBest, setLastHadPreviousBest] = useState(false);
   const [lastSecretRedStar, setLastSecretRedStar] = useState(false);
   const [scrollPosition, setScrollPosition] = useState({ scrollTop: 0, scrollLeft: 0 });
   const [showNoArrows, setShowNoArrows] = useState(false);
@@ -141,7 +142,9 @@ export default function GameScreen({
       const bestStars = Math.max(stageStars[level.id] || 0, earnedStars);
       const newStageStars = { ...stageStars, [level.id]: bestStars };
       const previousBestTime = stageBestTimes[level.id];
-      const isPersonalBest = Number.isFinite(previousBestTime) && elapsedSeconds < previousBestTime;
+      const hadPreviousBest = Number.isFinite(previousBestTime);
+      const isPersonalBest = hadPreviousBest && elapsedSeconds < previousBestTime;
+      const shouldOfferRetry = earnedStars < 3 || (hadPreviousBest && !isPersonalBest);
       const secretRedStarBaseSeconds = Number.isFinite(benchmarkSeconds)
         ? Math.max(0, Math.floor(benchmarkSeconds))
         : DEFAULT_STAR_TIME_LIMIT_SECONDS;
@@ -158,9 +161,10 @@ export default function GameScreen({
       setLastStarResults(starResults);
       setLastElapsedSeconds(elapsedSeconds);
       setLastIsPersonalBest(isPersonalBest);
+      setLastHadPreviousBest(hadPreviousBest);
       setLastSecretRedStar(secretRedStar);
       setWinnerAnimationSkipped(false);
-      setWinnerSelectedAction(earnedStars < 2 ? "retry" : "continue");
+      setWinnerSelectedAction(shouldOfferRetry ? "retry" : "continue");
       
       logActivity(`completed Stage ${currentStage + 1}: ${level.title} (${earnedStars}/3 stars${secretRedStar ? " + secret" : ""})`);
       onProgress(currentStage, newCompleted, newStageStars, newStageBestTimes, newStageSecretStars);
@@ -270,8 +274,29 @@ export default function GameScreen({
           {after}
         </>
       );
+    } else if (vim.mode === "VISUAL_LINE") {
+      const cursorIndex = Math.max(start, text[end - 1] === "\n" ? end - 2 : end - 1);
+      const before = text.slice(0, start);
+      const selectedBeforeCursor = text.slice(start, cursorIndex);
+      const cursorChar = text[cursorIndex] || " ";
+      const selectedAfterCursor = text.slice(cursorIndex + 1, end);
+      const after = text.slice(end);
+
+      return (
+        <>
+          {before}
+          <span className="vim-selection">{selectedBeforeCursor}</span>
+          {cursorChar === "\n" ? (
+            <><span className="vim-cursor"> </span><span className="vim-selection">{"\n"}</span></>
+          ) : (
+            <span className="vim-cursor">{cursorChar}</span>
+          )}
+          <span className="vim-selection">{selectedAfterCursor}</span>
+          {after}
+        </>
+      );
     } else {
-      // Visual modes
+      // Visual character mode
       const before = text.slice(0, start);
       const selectedBody = text.slice(start, end);
       const cursorChar = text[end] || " ";
@@ -302,6 +327,7 @@ export default function GameScreen({
         setLastStarResults([]);
         setLastElapsedSeconds(0);
         setLastIsPersonalBest(false);
+        setLastHadPreviousBest(false);
         setLastSecretRedStar(false);
         setWinnerAnimationSkipped(false);
       }
@@ -338,6 +364,7 @@ export default function GameScreen({
     setWinnerSelectedAction("continue");
     setLastStarResults([]);
     setLastIsPersonalBest(false);
+    setLastHadPreviousBest(false);
     setLastSecretRedStar(false);
     setLevelStartedAt(Date.now());
     setVimResetToken(prev => prev + 1);
@@ -349,7 +376,7 @@ export default function GameScreen({
     if (!showWinner) return;
 
     const handleWinnerKeyDown = (e: globalThis.KeyboardEvent) => {
-      const hasRetry = lastAwardedStars < 2;
+      const hasRetry = lastStarResults.some(result => !result.earned) || (lastHadPreviousBest && !lastIsPersonalBest);
       if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && hasRetry) {
         e.preventDefault();
         setWinnerSelectedAction(prev => prev === "retry" ? "continue" : "retry");
@@ -372,7 +399,7 @@ export default function GameScreen({
 
     window.addEventListener("keydown", handleWinnerKeyDown);
     return () => window.removeEventListener("keydown", handleWinnerKeyDown);
-  }, [showWinner, winnerAnimationSkipped, winnerSelectedAction, lastAwardedStars, currentStage, completedStages, adminUnlockedStageLimit, level]);
+  }, [showWinner, winnerAnimationSkipped, winnerSelectedAction, lastStarResults, lastHadPreviousBest, lastIsPersonalBest, currentStage, completedStages, adminUnlockedStageLimit, level]);
 
   useEffect(() => {
     if (!showWinner || winnerAnimationSkipped) return;
@@ -386,6 +413,8 @@ export default function GameScreen({
 
     return () => window.clearTimeout(timer);
   }, [showWinner, winnerAnimationSkipped, lastStarResults, lastSecretRedStar]);
+
+  const shouldShowRetry = lastStarResults.some(result => !result.earned) || (lastHadPreviousBest && !lastIsPersonalBest);
 
   if (!level) return null;
 
@@ -641,7 +670,7 @@ export default function GameScreen({
                 </div>
               ))}
             </div>
-            {lastAwardedStars < 2 ? (
+            {shouldShowRetry ? (
               <div className="winner-actions">
                 <button
                   className={`btn winner-action ${winnerSelectedAction === "retry" ? "selected" : ""}`}
