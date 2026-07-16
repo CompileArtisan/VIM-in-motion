@@ -19,6 +19,7 @@ This document lists the features currently implemented in the online Vim editor/
   - 1 star for using the expected Vim actions.
   - 1 star for finishing within the stage time limit.
 - The stage-clear popup shows which stars were earned and why any missed star was not awarded.
+- The stage-clear popup shows the current completion time and the player's personal best for that stage.
 - Reattempting a level shows `NEW PB!` with the current time when the player beats their previous best time for that level.
 - The stage-clear popup shows a Retry action when any normal star is missing or when a reattempt does not beat the player's previous best time.
 - If Retry appears only because PB was missed after earning all three stars, Continue is selected by default.

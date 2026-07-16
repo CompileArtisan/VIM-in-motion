@@ -461,6 +461,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
 }
 .winner-stars > span { color: var(--muted); display: block; font-size: .78rem; margin-top: .45rem; letter-spacing: 0; }
 .winner-stars > .winner-pb { color: var(--accent); font-weight: 700; font-size: .9rem; letter-spacing: 1px; }
+.winner-time-metrics { display: flex; justify-content: center; gap: .75rem; flex-wrap: wrap; margin-top: .55rem; }
+.winner-time-metrics span { border: 1px solid var(--border); padding: .35rem .55rem; color: var(--text); font-size: .76rem; }
+.winner-time-metrics strong { display: block; color: var(--muted); font-size: .62rem; font-weight: 400; letter-spacing: 1px; text-transform: uppercase; margin-bottom: .15rem; }
 .winner-star-breakdown { margin: 1rem auto 0; max-width: 560px; text-align: left; display: grid; gap: .35rem; }
 .winner-star-reason { border: 1px solid var(--border); padding: .45rem .6rem; display: grid; grid-template-columns: 8rem 1fr; gap: .75rem; font-size: .72rem; line-height: 1.4; }
 .winner-star-reason.earned { border-color: rgba(184,245,90,.35); }

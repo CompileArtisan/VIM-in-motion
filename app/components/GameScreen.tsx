@@ -52,6 +52,7 @@ export default function GameScreen({
   const [lastAwardedStars, setLastAwardedStars] = useState(0);
   const [lastStarResults, setLastStarResults] = useState<StarResult[]>([]);
   const [lastElapsedSeconds, setLastElapsedSeconds] = useState(0);
+  const [lastPersonalBestSeconds, setLastPersonalBestSeconds] = useState(0);
   const [lastIsPersonalBest, setLastIsPersonalBest] = useState(false);
   const [lastHadPreviousBest, setLastHadPreviousBest] = useState(false);
   const [lastSecretRedStar, setLastSecretRedStar] = useState(false);
@@ -160,6 +161,7 @@ export default function GameScreen({
       setLastAwardedStars(earnedStars);
       setLastStarResults(starResults);
       setLastElapsedSeconds(elapsedSeconds);
+      setLastPersonalBestSeconds(bestTime);
       setLastIsPersonalBest(isPersonalBest);
       setLastHadPreviousBest(hadPreviousBest);
       setLastSecretRedStar(secretRedStar);
@@ -326,6 +328,7 @@ export default function GameScreen({
         setLastAwardedStars(0);
         setLastStarResults([]);
         setLastElapsedSeconds(0);
+        setLastPersonalBestSeconds(0);
         setLastIsPersonalBest(false);
         setLastHadPreviousBest(false);
         setLastSecretRedStar(false);
@@ -363,6 +366,7 @@ export default function GameScreen({
     setWinnerAnimationSkipped(false);
     setWinnerSelectedAction("continue");
     setLastStarResults([]);
+    setLastPersonalBestSeconds(0);
     setLastIsPersonalBest(false);
     setLastHadPreviousBest(false);
     setLastSecretRedStar(false);
@@ -657,7 +661,11 @@ export default function GameScreen({
                   </span>
                 )}
               </div>
-              <span>{lastAwardedStars}/3 stars - {lastElapsedSeconds}s</span>
+              <span>{lastAwardedStars}/3 stars</span>
+              <div className="winner-time-metrics">
+                <span><strong>Current time</strong>{lastElapsedSeconds}s</span>
+                <span><strong>Personal PB</strong>{lastPersonalBestSeconds > 0 ? `${lastPersonalBestSeconds}s` : "-"}</span>
+              </div>
               {lastIsPersonalBest && (
                 <span className="winner-pb">NEW PB! {lastElapsedSeconds}s</span>
               )}
