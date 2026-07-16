@@ -159,8 +159,9 @@ The app now defines 19 practical Vim core stages:
 
 - Live player list.
 - Player username and email display.
-- Player-specific detail view by selecting a player.
-- Selected player detail shows levels completed, total stars, per-level completion, per-level stars, and best times.
+- Separate player profile page opens by clicking a player card or player table row.
+- Player profile includes a Back button to return to the main admin dashboard.
+- Player profile shows levels completed, total stars, per-level completion, per-level stars, and time taken per level.
 - Active/idle status.
 - Current stage and completion counts.
 - Total stars earned across all stages.
