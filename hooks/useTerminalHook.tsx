@@ -46,6 +46,8 @@ function resolvePath(currentCwd: string, target: string): string | null {
 export function useTerminal(
   user: User | null,
   completedStages: string[],
+  stageStars: Record<string, number>,
+  stageSecretStars: Record<string, boolean>,
   adminUnlockedStageLimit: number,
   onOpenFile?: (filename: string) => void,
   onReset?: () => void | Promise<void>
@@ -205,7 +207,11 @@ export function useTerminal(
               if (stageNumStr) {
                 const stageIndex = parseInt(stageNumStr[1]) - 1;
                 const stageId = `stage-${stageIndex + 1}`;
-                if (completedStages.includes(stageId)) {
+                if (stageSecretStars[stageId]) {
+                  color = "#ff5a5a"; // red for secret star
+                } else if ((stageStars[stageId] || 0) >= 3) {
+                  color = "#f5c842"; // gold for all three stars
+                } else if (completedStages.includes(stageId)) {
                   color = "#4af626"; // green for completed
                 } else if (stageIndex <= adminUnlockedStageLimit) {
                   // check if previous is done or we are stage 0

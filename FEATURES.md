@@ -45,6 +45,7 @@ Current instructor credentials:
 - The terminal uses a custom thick block cursor that follows the real input caret.
 - The block cursor renders the covered character in black while visible and white while blinking off.
 - Stage files respect completion locks and instructor unlock limits.
+- `ls ~/levels` colors stage files by achievement: red for a secret red star, yellow for three stars, green for completed, white for unlocked, and gray for locked.
 - `reset` asks for `y/n` confirmation in the terminal, then clears Firebase progress for the current account.
 - Reset clears completed stages, stars, and best times while keeping the player account and browser session.
 

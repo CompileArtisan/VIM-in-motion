@@ -183,7 +183,7 @@ export default function GameScreen({
     autocompleteOptions,
     autocompleteIndex,
     awaitingResetConfirm,
-  } = useTerminal(user, completedStages, adminUnlockedStageLimit, (filename) => {
+  } = useTerminal(user, completedStages, stageStars, stageSecretStars, adminUnlockedStageLimit, (filename) => {
     if (filename === "README.md" || filename === "README.org") {
       setOpenedReadme(filename);
     } else {
