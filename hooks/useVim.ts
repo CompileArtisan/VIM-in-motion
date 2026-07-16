@@ -20,6 +20,7 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const bufferRef = useRef<string>("");
   const clipboardRef = useRef<string>("");
+  const clipboardKindRef = useRef<"char" | "line">("char");
   const lastEditRef = useRef<string>("");
   const usageRef = useRef<VimUsage>({ commands: [], actions: [] });
   const lastSearchRef = useRef("");
@@ -37,6 +38,8 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
     setCursor({ start: 0, end: 0 });
     bufferRef.current = "";
     lastEditRef.current = "";
+    clipboardRef.current = "";
+    clipboardKindRef.current = "char";
     usageRef.current = { commands: [], actions: [] };
     lastSearchRef.current = "";
     macroRegistersRef.current = {};
@@ -276,6 +279,32 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
     }
 
     return { start, end };
+  };
+
+  const getLinewisePasteText = () => clipboardRef.current.endsWith("\n")
+    ? clipboardRef.current.slice(0, -1)
+    : clipboardRef.current;
+
+  const pasteLinewiseBelow = () => {
+    const paste = getLinewisePasteText();
+    const info = getLineInfo(cursor.start);
+    const insertAt = info.lineEnd < text.length ? info.lineEnd + 1 : text.length;
+    const newText = text.length === 0
+      ? paste
+      : info.lineEnd < text.length
+        ? text.slice(0, insertAt) + paste + "\n" + text.slice(insertAt)
+        : text + "\n" + paste;
+    commitHistory(newText);
+    setCursor({ start: insertAt, end: insertAt });
+  };
+
+  const pasteLinewiseAbove = () => {
+    const paste = getLinewisePasteText();
+    const info = getLineInfo(cursor.start);
+    const insertAt = info.lineStart;
+    const newText = text.slice(0, insertAt) + paste + "\n" + text.slice(insertAt);
+    commitHistory(newText);
+    setCursor({ start: insertAt, end: insertAt });
   };
 
   const findPattern = (pattern: string, direction: 1 | -1 = 1, fromPos = cursor.start) => {
@@ -618,8 +647,10 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
         
         if (buf === "y") {
            clipboardRef.current = text.slice(start, end);
+           clipboardKindRef.current = mode === "VISUAL_LINE" ? "line" : "char";
         } else {
            clipboardRef.current = text.slice(start, end);
+           clipboardKindRef.current = mode === "VISUAL_LINE" ? "line" : "char";
            commitHistory(text.slice(0, start) + text.slice(end));
         }
         setMode("NORMAL");
@@ -685,27 +716,35 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
         setCursor({ start: info.lineStart, end: info.lineEnd });
         trackUsage("V", ["visual", "mode:visual-line"]);
       } else if (buf === "p") {
-        const paste = clipboardRef.current;
-        const insertAt = cursor.start + 1;
-        const newText = text.slice(0, insertAt) + paste + text.slice(insertAt);
-        const newCursor = Math.max(0, insertAt + paste.length - 1);
-        commitHistory(newText);
-        setCursor({
-          start: Math.min(newCursor, Math.max(0, newText.length - 1)),
-          end: Math.min(newCursor, Math.max(0, newText.length - 1)),
-        });
+        if (clipboardKindRef.current === "line") {
+          pasteLinewiseBelow();
+        } else {
+          const paste = clipboardRef.current;
+          const insertAt = cursor.start + 1;
+          const newText = text.slice(0, insertAt) + paste + text.slice(insertAt);
+          const newCursor = Math.max(0, insertAt + paste.length - 1);
+          commitHistory(newText);
+          setCursor({
+            start: Math.min(newCursor, Math.max(0, newText.length - 1)),
+            end: Math.min(newCursor, Math.max(0, newText.length - 1)),
+          });
+        }
         lastEditRef.current = "p";
         trackUsage("p", ["paste"]);
       } else if (buf === "P") {
-        const paste = clipboardRef.current;
-        const insertAt = cursor.start;
-        const newText = text.slice(0, insertAt) + paste + text.slice(insertAt);
-        const newCursor = Math.max(0, insertAt + paste.length - 1);
-        commitHistory(newText);
-        setCursor({
-          start: Math.min(newCursor, Math.max(0, newText.length - 1)),
-          end: Math.min(newCursor, Math.max(0, newText.length - 1)),
-        });
+        if (clipboardKindRef.current === "line") {
+          pasteLinewiseAbove();
+        } else {
+          const paste = clipboardRef.current;
+          const insertAt = cursor.start;
+          const newText = text.slice(0, insertAt) + paste + text.slice(insertAt);
+          const newCursor = Math.max(0, insertAt + paste.length - 1);
+          commitHistory(newText);
+          setCursor({
+            start: Math.min(newCursor, Math.max(0, newText.length - 1)),
+            end: Math.min(newCursor, Math.max(0, newText.length - 1)),
+          });
+        }
         lastEditRef.current = "P";
         trackUsage("P", ["paste"]);
       } else if (buf === "u") {
@@ -724,6 +763,7 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
       } else if (buf === "x") {
         const newText = text.slice(0, cursor.start) + text.slice(cursor.start + 1);
         clipboardRef.current = text[cursor.start] || "";
+        clipboardKindRef.current = "char";
         commitHistory(newText);
         updateCursor(cursor.start);
         lastEditRef.current = "x";
@@ -733,6 +773,7 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
           const deleteAt = cursor.start - 1;
           const newText = text.slice(0, deleteAt) + text.slice(cursor.start);
           clipboardRef.current = text[deleteAt] || "";
+          clipboardKindRef.current = "char";
           commitHistory(newText);
           updateCursor(deleteAt);
           lastEditRef.current = "X";
@@ -743,6 +784,7 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
         if (range) {
           const { start, end } = range;
           clipboardRef.current = text.slice(start, end);
+          clipboardKindRef.current = "char";
           commitHistory(text.slice(0, start) + text.slice(end));
           updateCursor(start);
           lastEditRef.current = "D";
@@ -753,6 +795,7 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
         if (range) {
           const { start, end } = range;
           clipboardRef.current = text.slice(start, end);
+          clipboardKindRef.current = "char";
           commitHistory(text.slice(0, start) + text.slice(end));
           setMode("INSERT");
           setInsertCursor(start);
@@ -762,6 +805,7 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
       } else if (buf === "S") {
         const { start, end } = getLineRange(cursor.start, 1);
         clipboardRef.current = text.slice(start, end);
+        clipboardKindRef.current = "line";
         commitHistory(text.slice(0, start) + text.slice(end));
         setMode("INSERT");
         setInsertCursor(start);
@@ -770,6 +814,7 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
       } else if (buf === "Y") {
         const { start, end } = getLineRange(cursor.start, 1);
         clipboardRef.current = text.slice(start, end);
+        clipboardKindRef.current = "line";
         trackUsage("Y", ["yy", "yank", "operator:y", "line", "line:single"]);
       }
       recordMacroKey(buf);
@@ -829,6 +874,7 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
             actionEnd = lineRange.end;
           }
           clipboardRef.current = text.slice(actionStart, actionEnd);
+          clipboardKindRef.current = isLinewiseMotion ? "line" : "char";
           if (action === "d" || action === "c") {
             commitHistory(text.slice(0, actionStart) + text.slice(actionEnd));
             updateCursor(actionStart);
@@ -864,6 +910,7 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
           trackUsage(buf, ["visual", ...getTextObjectActions(obj)]);
         } else {
           clipboardRef.current = text.slice(start, end);
+          clipboardKindRef.current = "char";
           if (action === "d" || action === "c") {
             commitHistory(text.slice(0, start) + text.slice(end));
             updateCursor(start);
@@ -889,6 +936,7 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
       const action = doubleMatch[2];
       const { start, end } = getLineRange(cursor.start, count);
       clipboardRef.current = text.slice(start, end);
+      clipboardKindRef.current = "line";
       
       if (action === "d" || action === "c") {
         commitHistory(text.slice(0, start) + text.slice(end));

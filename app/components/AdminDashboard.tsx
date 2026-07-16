@@ -45,7 +45,7 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
   const bestTimeTotal = (player: PlayerData) => Object.values(player.stageBestTimes || {}).reduce((sum, seconds) => sum + seconds, 0);
   const selectedPlayer = playersList.find(player => player.playerKey === selectedPlayerKey) || playersList[0] || null;
   const playerName = (player: PlayerData) => player.username || player.name;
-  const playerLabel = (player: PlayerData) => player.email ? `${playerName(player)} (${player.email})` : playerName(player);
+  const playerLabel = (player: PlayerData) => playerName(player);
 
   const openPlayerProfile = (playerKey: string) => {
     setSelectedPlayerKey(playerKey);

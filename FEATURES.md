@@ -84,6 +84,8 @@ Current instructor credentials:
 - `Y` yanks the current line.
 - `p` pastes after the cursor.
 - `P` pastes before the cursor.
+- Characterwise yanks such as `y$` and `yw` paste inline.
+- Linewise yanks/deletes such as `yy`, `Y`, `dd`, and `d2j` paste as whole lines above or below.
 - `u`
 - `Ctrl+r`
 - `.` repeats the last tracked edit.
@@ -165,7 +167,7 @@ The app now defines 19 practical Vim core stages:
 ## Instructor Dashboard
 
 - Live player list.
-- Player username and email display together in admin player labels.
+- Admin player labels show usernames, with email shown in the dedicated email column and profile metadata.
 - Separate player profile page opens by clicking a player card or player table row.
 - Player profile includes a Back button to return to the main admin dashboard.
 - Player profile shows levels completed, total stars, per-level completion, per-level stars, and time taken per level.
