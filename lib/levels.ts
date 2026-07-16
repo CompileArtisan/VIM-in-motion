@@ -179,9 +179,10 @@ export const LEVELS: Level[] = [
       { key: "ci\"", desc: "change inside quotes" },
       { key: "yiw", desc: "yank inside word" },
     ],
-    startText: `const label = "PLACEHOLDER";\nconst mode = "draft";\nremove_me should disappear`,
-    task: `Change the label to <span class="target">Launch Ready</span>, change mode to <span class="target">stable</span>, and remove <span class="target">remove_me</span>.`,
-    check: (text: string) => includesAll(text, [`const label = "Launch Ready";`, `const mode = "stable";`]) && !text.includes("remove_me"),
+    startText: `const label = "PLACEHOLDER headline\nneeds a shorter launch label\nmanual deletion would take too long\nuse the quote text object instead";\nconst mode = "draft";\nremove_me should disappear`,
+    task: `Use the quote text object to replace the multi-line label with <span class="target">Launch Ready</span>, change mode to <span class="target">stable</span>, and remove <span class="target">remove_me</span>.`,
+    check: (text: string) => includesAll(text, [`const label = "Launch Ready";`, `const mode = "stable";`])
+      && !/PLACEHOLDER|manual deletion|quote text object|remove_me/.test(text),
     requiredActions: [
       { id: "word-object", label: "Use a word text object", matches: ["diw", "daw", "yiw", "text-object:word"] },
       { id: "quote-object", label: "Use a quote text object", matches: ["ci\"", "di\"", "text-object:quote"] },

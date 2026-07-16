@@ -168,6 +168,8 @@ The app now defines 19 practical Vim core stages:
 18. Macros At Scale
 19. Final Practical Edit
 
+Stage 9 uses a multi-line quoted placeholder so quote text objects such as `ci"` and `di"` are meaningfully faster than manual deletion.
+
 ## Instructor Dashboard
 
 - Live player list.
