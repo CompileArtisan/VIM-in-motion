@@ -134,6 +134,7 @@ Current instructor credentials:
 - The Vim engine tracks exact commands and semantic action IDs.
 - Examples of exact commands: `dw`, `3dd`, `ci"`, `/error`, `:%s/a/b/g`, `qa`, `@a`, `Ctrl+r`.
 - Examples of semantic actions: `motion:w`, `operator:d`, `text-object:quote`, `search`, `substitution`, `regex`, `macro:record`, `macro:replay`.
+- Vertical operator motions such as `dj`, `d2j`, `dk`, and `d2k` are tracked as linewise actions, including counted line actions.
 - Level requirements use unordered contains checks.
 - If final text is correct but required actions are missing, the app reports the untracked actions instead of completing the stage.
 

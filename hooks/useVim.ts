@@ -822,6 +822,7 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
         } else {
           let actionStart = start;
           let actionEnd = end;
+          const isLinewiseMotion = ["j", "k"].includes(motion);
           if (["j", "k"].includes(motion)) {
             const lineRange = getLineRangeByMotion(cursor.start, motion as "j" | "k", count);
             actionStart = lineRange.start;
@@ -837,6 +838,7 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
           trackUsage(buf, [
             ...getOperatorActions(action, count),
             ...getMotionActions(motion, count),
+            ...(isLinewiseMotion ? ["line", count > 1 ? "line:counted" : "line:single"] : []),
             action === "y" ? "yank" : action === "d" ? "delete" : "change",
           ]);
         }
