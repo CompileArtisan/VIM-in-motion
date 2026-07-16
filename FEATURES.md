@@ -18,7 +18,7 @@ This document lists the features currently implemented in the online Vim editor/
   - 1 star for matching the target text.
   - 2 stars for matching the target text and using the expected Vim actions.
   - 3 stars for also finishing within the stage time limit.
-- Stage time limits use `vim_god` benchmarks when available: `vim_god`'s best time for that stage plus 5 seconds.
+- Stage time limits use `vim_god` benchmarks when available: `vim_god`'s best time for that stage plus 15 seconds.
 - If `vim_god` or a stage benchmark is unavailable, the default 3-star time limit is 180 seconds.
 - The best star count per stage is saved with player progress.
 - The best completion time per stage is saved with player progress.
@@ -48,6 +48,8 @@ Current instructor credentials:
 
 - Normal mode for navigation and commands.
 - Insert mode through `i` and `a`.
+- Insert-at-line commands: `I` inserts at the first non-blank character, `A` appends at the end of the line.
+- Open-line insert commands: `o` opens a line below, `O` opens a line above.
 - Visual character mode through `v`.
 - Visual line mode through `V`.
 - Command mode through `:`.
@@ -64,12 +66,18 @@ Current instructor credentials:
 ## Operators And Editing
 
 - `x` deletes the character under the cursor.
+- `X` deletes the character before the cursor.
 - `dw`, `de`, `d$`, `dd`
+- `D` is supported as shorthand for `d$`.
+- `C` is supported as shorthand for `c$`.
+- `S` is supported as shorthand for `cc`.
 - `dj`, `d2j`, `dk`, `d2k`
 - `d[count][motion]`
 - Counted vertical deletes such as `d2j` delete complete line ranges without consuming the first character of the following line.
 - `yy`, `yw`, `y$`
-- `p`
+- `Y` yanks the current line.
+- `p` pastes after the cursor.
+- `P` pastes before the cursor.
 - `u`
 - `Ctrl+r`
 - `.` repeats the last tracked edit.
@@ -151,6 +159,8 @@ The app now defines 19 practical Vim core stages:
 
 - Live player list.
 - Player username and email display.
+- Player-specific detail view by selecting a player.
+- Selected player detail shows levels completed, total stars, per-level completion, per-level stars, and best times.
 - Active/idle status.
 - Current stage and completion counts.
 - Total stars earned across all stages.

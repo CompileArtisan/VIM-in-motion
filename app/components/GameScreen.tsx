@@ -24,6 +24,7 @@ interface GameScreenProps {
 }
 
 const DEFAULT_STAR_TIME_LIMIT_SECONDS = 180;
+const VIM_GOD_TIME_BONUS_SECONDS = 15;
 const WINNER_STAR_ANIMATION_MS = 1800;
 const WINNER_STAR_STAGGER_MS = 650;
 
@@ -43,6 +44,7 @@ export default function GameScreen({
   const [feedback, setFeedback] = useState<{ type: 'success' | 'fail', msg: string } | null>(null);
   const [showWinner, setShowWinner] = useState(false);
   const [winnerAnimationSkipped, setWinnerAnimationSkipped] = useState(false);
+  const [winnerSelectedAction, setWinnerSelectedAction] = useState<"retry" | "continue">("continue");
   const [lastAwardedStars, setLastAwardedStars] = useState(0);
   const [lastElapsedSeconds, setLastElapsedSeconds] = useState(0);
   const [scrollPosition, setScrollPosition] = useState({ scrollTop: 0, scrollLeft: 0 });
@@ -50,6 +52,7 @@ export default function GameScreen({
   const [openedReadme, setOpenedReadme] = useState<"README.md" | "README.org" | null>(null);
   const [terminalCursor, setTerminalCursor] = useState(0);
   const [levelStartedAt, setLevelStartedAt] = useState(Date.now());
+  const [vimResetToken, setVimResetToken] = useState(0);
   const terminalInputRef = useRef<HTMLInputElement>(null);
 
   const readmeLevel = {
@@ -87,7 +90,7 @@ export default function GameScreen({
       const elapsedSeconds = Math.floor((Date.now() - levelStartedAt) / 1000);
       const benchmarkSeconds = benchmarkStageTimes[level.id];
       const timeLimitSeconds = Number.isFinite(benchmarkSeconds)
-        ? Math.max(0, Math.floor(benchmarkSeconds)) + 5
+        ? Math.max(0, Math.floor(benchmarkSeconds)) + VIM_GOD_TIME_BONUS_SECONDS
         : (level.starTimeLimitSeconds || DEFAULT_STAR_TIME_LIMIT_SECONDS);
       const timePassed = elapsedSeconds <= timeLimitSeconds;
       const earnedStars = actionsPassed ? (timePassed ? 3 : 2) : 1;
@@ -116,6 +119,7 @@ export default function GameScreen({
       setLastAwardedStars(earnedStars);
       setLastElapsedSeconds(elapsedSeconds);
       setWinnerAnimationSkipped(false);
+      setWinnerSelectedAction(earnedStars < 2 ? "retry" : "continue");
       
       logActivity(`completed Stage ${currentStage + 1}: ${level.title} (${earnedStars}/3 stars)`);
       onProgress(currentStage, newCompleted, newStageStars, newStageBestTimes);
@@ -127,7 +131,7 @@ export default function GameScreen({
   };
 
   // Initialize VIM Engine
-  const vim = useVim(level ? level.startText : "", handleCheck, () => setIsTerminal(true));
+  const vim = useVim(level ? level.startText : "", handleCheck, () => setIsTerminal(true), vimResetToken);
 
   // Initialize Terminal
   const {
@@ -178,7 +182,7 @@ export default function GameScreen({
   const currentBestStars = level && !openedReadme ? stageStars[level.id] || 0 : 0;
   const benchmarkTimeSeconds = level && !openedReadme ? benchmarkStageTimes[level.id] : undefined;
   const starTimeLimitSeconds = Number.isFinite(benchmarkTimeSeconds)
-    ? Math.max(0, Math.floor(benchmarkTimeSeconds)) + 5
+    ? Math.max(0, Math.floor(benchmarkTimeSeconds)) + VIM_GOD_TIME_BONUS_SECONDS
     : (level?.starTimeLimitSeconds || DEFAULT_STAR_TIME_LIMIT_SECONDS);
   const renderStars = (count: number) => "★".repeat(count) + "☆".repeat(3 - count);
 
@@ -283,22 +287,45 @@ export default function GameScreen({
     setIsTerminal(true);
   };
 
+  const handleRetryStage = () => {
+    setShowWinner(false);
+    setFeedback(null);
+    setWinnerAnimationSkipped(false);
+    setWinnerSelectedAction("continue");
+    setLevelStartedAt(Date.now());
+    setVimResetToken(prev => prev + 1);
+    setIsTerminal(false);
+    window.setTimeout(() => vim.textareaRef.current?.focus(), 0);
+  };
+
   useEffect(() => {
     if (!showWinner) return;
 
     const handleWinnerKeyDown = (e: globalThis.KeyboardEvent) => {
+      const hasRetry = lastAwardedStars < 2;
+      if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && hasRetry) {
+        e.preventDefault();
+        setWinnerSelectedAction(prev => prev === "retry" ? "continue" : "retry");
+        return;
+      }
+
       if (e.key !== "Enter") return;
       e.preventDefault();
       if (!winnerAnimationSkipped) {
         setWinnerAnimationSkipped(true);
         return;
       }
-      handleDismissWinner();
+
+      if (hasRetry && winnerSelectedAction === "retry") {
+        handleRetryStage();
+      } else {
+        handleDismissWinner();
+      }
     };
 
     window.addEventListener("keydown", handleWinnerKeyDown);
     return () => window.removeEventListener("keydown", handleWinnerKeyDown);
-  }, [showWinner, winnerAnimationSkipped, currentStage, completedStages, adminUnlockedStageLimit, level]);
+  }, [showWinner, winnerAnimationSkipped, winnerSelectedAction, lastAwardedStars, currentStage, completedStages, adminUnlockedStageLimit, level]);
 
   useEffect(() => {
     if (!showWinner || winnerAnimationSkipped) return;
@@ -541,13 +568,32 @@ export default function GameScreen({
               </div>
               <span>{lastAwardedStars}/3 stars - {lastElapsedSeconds}s</span>
             </div>
-            <button className="btn btn-primary" style={{marginTop:"1.5rem", width:"auto", padding:".6rem 2rem"}} onClick={handleDismissWinner}>
-              {currentStage + 1 < LEVELS.length && currentStage + 1 > adminUnlockedStageLimit ? "Close" : "Continue →"}
-            </button>
-          </div>
+            {lastAwardedStars < 2 ? (
+              <div className="winner-actions">
+                <button
+                  className={`btn winner-action ${winnerSelectedAction === "retry" ? "selected" : ""}`}
+                  onClick={handleRetryStage}
+                  onMouseEnter={() => setWinnerSelectedAction("retry")}
+                >
+                  Retry
+                </button>
+                <button
+                  className={`btn winner-action ${winnerSelectedAction === "continue" ? "selected" : ""}`}
+                  onClick={handleDismissWinner}
+                  onMouseEnter={() => setWinnerSelectedAction("continue")}
+                >
+                  Continue
+                </button>
+              </div>
+            ) : (
+              <button className="btn btn-primary" style={{marginTop:"1.5rem", width:"auto", padding:".6rem 2rem"}} onClick={handleDismissWinner}>
+                {currentStage + 1 < LEVELS.length && currentStage + 1 > adminUnlockedStageLimit ? "Close" : "Continue"}
+              </button>
+            )}          </div>
         </div>
       )}
     </div>
   );
 }
+
 

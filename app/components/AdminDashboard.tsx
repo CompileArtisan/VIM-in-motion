@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { PlayerData, ActivityLog } from '../../hooks/useFirebase';
+import { LEVELS } from '../../lib/levels';
 
 interface AdminDashboardProps {
   players: Record<string, PlayerData>;
@@ -14,6 +15,8 @@ interface AdminDashboardProps {
 type PlayerListItem = PlayerData & { playerKey: string };
 
 export default function AdminDashboard({ players, activityLogs, totalLevels, unlockedStageLimit, setGlobalUnlockLimit, deletePlayer, onLogout }: AdminDashboardProps) {
+  const [selectedPlayerKey, setSelectedPlayerKey] = useState<string | null>(null);
+
   const timeAgo = (ts: number) => {
     const diff = Math.floor((Date.now() - ts) / 1000);
     if (diff < 60) return `${diff}s ago`;
@@ -38,6 +41,12 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
   const starTotal = (player: PlayerData) => Object.values(player.stageStars || {}).reduce((sum, stars) => sum + stars, 0);
   const maxStars = totalLevels * 3;
   const bestTimeTotal = (player: PlayerData) => Object.values(player.stageBestTimes || {}).reduce((sum, seconds) => sum + seconds, 0);
+  const selectedPlayer = playersList.find(player => player.playerKey === selectedPlayerKey) || playersList[0] || null;
+
+  useEffect(() => {
+    if (selectedPlayerKey && playersList.some(player => player.playerKey === selectedPlayerKey)) return;
+    setSelectedPlayerKey(playersList[0]?.playerKey || null);
+  }, [playersList, selectedPlayerKey]);
 
   return (
     <div id="screen-admin" className="screen active">
@@ -57,14 +66,21 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
               const active = p.lastActive > fiveMinAgo;
               const stageNum = (p.currentStage || 0) + 1;
               return (
-                <div key={p.playerKey} className="player-card">
+                <div
+                  key={p.playerKey}
+                  className={`player-card ${selectedPlayer?.playerKey === p.playerKey ? "selected" : ""}`}
+                  onClick={() => setSelectedPlayerKey(p.playerKey)}
+                >
                   <div className="pc-name">{active && <span className="online-dot"></span>}{p.username || p.name}</div>
                   {p.email && <div className="pc-meta">{p.email}</div>}
                   <div className="pc-meta">{p.completedStages?.length || 0}/{totalLevels} stages done · {starTotal(p)}/{maxStars} stars · {bestTimeTotal(p)}s best</div>
                   <div className="pc-stage">S{stageNum}</div>
                   <button
                     className="btn btn-danger"
-                    onClick={() => handleDeletePlayer(p)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeletePlayer(p);
+                    }}
                     style={{marginTop: ".65rem", padding: ".25rem .45rem", fontSize: ".62rem"}}
                   >
                     Delete
@@ -112,6 +128,42 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
           <div className="admin-table-title">
             <span>Player Progress</span>
           </div>
+
+          {selectedPlayer && (
+            <div className="player-detail">
+              <div className="player-detail-header">
+                <div>
+                  <div className="player-detail-title">{selectedPlayer.username || selectedPlayer.name}</div>
+                  <div className="player-detail-meta">{selectedPlayer.email || "No email recorded"}</div>
+                </div>
+                <div className="player-detail-summary">
+                  <span>{selectedPlayer.completedStages?.length || 0}/{totalLevels} levels complete</span>
+                  <span>{starTotal(selectedPlayer)}/{maxStars} stars</span>
+                </div>
+              </div>
+
+              <div className="level-star-grid">
+                {LEVELS.slice(0, totalLevels).map((level, index) => {
+                  const stars = selectedPlayer.stageStars?.[level.id] || 0;
+                  const complete = selectedPlayer.completedStages?.includes(level.id);
+                  const bestTime = selectedPlayer.stageBestTimes?.[level.id];
+                  return (
+                    <div key={level.id} className={`level-star-row ${complete ? "complete" : ""}`}>
+                      <div className="level-star-main">
+                        <span className="level-star-num">S{index + 1}</span>
+                        <span className="level-star-title">{level.title}</span>
+                      </div>
+                      <div className="level-star-meta">
+                        <span className="level-star-icons">{"\u2605".repeat(stars)}{"\u2606".repeat(3 - stars)}</span>
+                        <span>{complete ? "Complete" : "Incomplete"}</span>
+                        <span>{Number.isFinite(bestTime) ? `${bestTime}s best` : "-"}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           
           <table>
             <thead>
@@ -139,7 +191,7 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
                 const active = p.lastActive > fiveMinAgo;
 
                 return (
-                  <tr key={p.playerKey}>
+                  <tr key={p.playerKey} onClick={() => setSelectedPlayerKey(p.playerKey)} style={{cursor: "pointer"}}>
                     <td style={{fontWeight:700}}>{p.username || p.name}</td>
                     <td style={{color:"var(--muted)", fontSize:".72rem"}}>{p.email || "-"}</td>
                     <td>
@@ -165,7 +217,10 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
                     <td>
                       <button
                         className="btn btn-danger"
-                        onClick={() => handleDeletePlayer(p)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeletePlayer(p);
+                        }}
                         style={{padding: ".25rem .5rem", fontSize: ".62rem"}}
                       >
                         Delete

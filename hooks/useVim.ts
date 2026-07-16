@@ -8,7 +8,7 @@ export interface VimUsage {
   actions: string[];
 }
 
-export function useVim(initialText: string, onWq?: (finalText: string, vimUsage: VimUsage) => void, onQuit?: () => void) {
+export function useVim(initialText: string, onWq?: (finalText: string, vimUsage: VimUsage) => void, onQuit?: () => void, resetToken = 0) {
   const [text, setText] = useState(initialText);
   const [mode, setMode] = useState<VimMode>("NORMAL");
   const [commandText, setCommandText] = useState("");
@@ -43,7 +43,7 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
     macroRecordingRef.current = null;
     awaitingMacroRegisterRef.current = false;
     lastMacroRegisterRef.current = null;
-  }, [initialText]);
+  }, [initialText, resetToken]);
 
   const trackUsage = (command: string, actions: string[] = []) => {
     usageRef.current = {
@@ -646,14 +646,35 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
 
     // NORMAL MODE
     // Single immediate actions
-    if (buf === "i" || buf === "a" || buf === "v" || buf === "V" || buf === "p" || buf === "u" || buf === "x" || buf === "D") {
+    if (["i", "I", "a", "A", "o", "O", "v", "V", "p", "P", "u", "x", "X", "D", "C", "S", "Y"].includes(buf)) {
       if (buf === "i") {
         setMode("INSERT");
         trackUsage("i", ["mode:insert"]);
+      } else if (buf === "I") {
+        const info = getLineInfo(cursor.start);
+        const firstNonBlank = info.text.search(/\S/);
+        const insertAt = info.lineStart + (firstNonBlank === -1 ? 0 : firstNonBlank);
+        setMode("INSERT");
+        setInsertCursor(insertAt);
+        trackUsage("I", ["mode:insert", "motion:0"]);
       } else if (buf === "a") {
         setMode("INSERT");
         setInsertCursor(cursor.start + 1);
         trackUsage("a", ["mode:insert"]);
+      } else if (buf === "A") {
+        const info = getLineInfo(cursor.start);
+        setMode("INSERT");
+        setInsertCursor(info.lineEnd);
+        trackUsage("A", ["mode:insert", "motion:$"]);
+      } else if (buf === "o" || buf === "O") {
+        const info = getLineInfo(cursor.start);
+        const insertAt = buf === "o" ? info.lineEnd : info.lineStart;
+        const newText = text.slice(0, insertAt) + "\n" + text.slice(insertAt);
+        commitHistory(newText);
+        setMode("INSERT");
+        setInsertCursor(buf === "o" ? insertAt + 1 : insertAt);
+        lastEditRef.current = buf;
+        trackUsage(buf, ["mode:insert", "line"]);
       } else if (buf === "v") {
         setMode("VISUAL");
         setCursor({ start: cursor.start, end: cursor.start + 1 });
@@ -675,6 +696,18 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
         });
         lastEditRef.current = "p";
         trackUsage("p", ["paste"]);
+      } else if (buf === "P") {
+        const paste = clipboardRef.current;
+        const insertAt = cursor.start;
+        const newText = text.slice(0, insertAt) + paste + text.slice(insertAt);
+        const newCursor = Math.max(0, insertAt + paste.length - 1);
+        commitHistory(newText);
+        setCursor({
+          start: Math.min(newCursor, Math.max(0, newText.length - 1)),
+          end: Math.min(newCursor, Math.max(0, newText.length - 1)),
+        });
+        lastEditRef.current = "P";
+        trackUsage("P", ["paste"]);
       } else if (buf === "u") {
         if (historyLine.length > 1) {
           const newHistory = historyLine.slice(0, -1);
@@ -695,6 +728,16 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
         updateCursor(cursor.start);
         lastEditRef.current = "x";
         trackUsage("x", ["delete", "operator:d"]);
+      } else if (buf === "X") {
+        if (cursor.start > 0) {
+          const deleteAt = cursor.start - 1;
+          const newText = text.slice(0, deleteAt) + text.slice(cursor.start);
+          clipboardRef.current = text[deleteAt] || "";
+          commitHistory(newText);
+          updateCursor(deleteAt);
+          lastEditRef.current = "X";
+        }
+        trackUsage("X", ["delete", "operator:d"]);
       } else if (buf === "D") {
         const range = getMotionRange(cursor.start, "$", 1);
         if (range) {
@@ -705,6 +748,29 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
           lastEditRef.current = "D";
           trackUsage("D", ["d$", "delete", "operator:d", ...getMotionActions("$")]);
         }
+      } else if (buf === "C") {
+        const range = getMotionRange(cursor.start, "$", 1);
+        if (range) {
+          const { start, end } = range;
+          clipboardRef.current = text.slice(start, end);
+          commitHistory(text.slice(0, start) + text.slice(end));
+          setMode("INSERT");
+          setInsertCursor(start);
+          lastEditRef.current = "C";
+          trackUsage("C", ["c$", "change", "operator:c", ...getMotionActions("$")]);
+        }
+      } else if (buf === "S") {
+        const { start, end } = getLineRange(cursor.start, 1);
+        clipboardRef.current = text.slice(start, end);
+        commitHistory(text.slice(0, start) + text.slice(end));
+        setMode("INSERT");
+        setInsertCursor(start);
+        lastEditRef.current = "S";
+        trackUsage("S", ["cc", "change", "operator:c", "line", "line:single"]);
+      } else if (buf === "Y") {
+        const { start, end } = getLineRange(cursor.start, 1);
+        clipboardRef.current = text.slice(start, end);
+        trackUsage("Y", ["yy", "yank", "operator:y", "line", "line:single"]);
       }
       recordMacroKey(buf);
       bufferRef.current = "";
