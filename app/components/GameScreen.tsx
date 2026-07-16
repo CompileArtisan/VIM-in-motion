@@ -142,7 +142,10 @@ export default function GameScreen({
       const newStageStars = { ...stageStars, [level.id]: bestStars };
       const previousBestTime = stageBestTimes[level.id];
       const isPersonalBest = Number.isFinite(previousBestTime) && elapsedSeconds < previousBestTime;
-      const secretRedStar = Number.isFinite(benchmarkSeconds) && elapsedSeconds < benchmarkSeconds;
+      const secretRedStarBaseSeconds = Number.isFinite(benchmarkSeconds)
+        ? Math.max(0, Math.floor(benchmarkSeconds))
+        : DEFAULT_STAR_TIME_LIMIT_SECONDS;
+      const secretRedStar = elapsedSeconds < secretRedStarBaseSeconds;
       const bestTime = Number.isFinite(previousBestTime)
         ? Math.min(previousBestTime, elapsedSeconds)
         : elapsedSeconds;

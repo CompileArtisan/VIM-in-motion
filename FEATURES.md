@@ -21,6 +21,7 @@ This document lists the features currently implemented in the online Vim editor/
 - The stage-clear popup shows which stars were earned and why any missed star was not awarded.
 - Reattempting a level shows `NEW PB!` with the current time when the player beats their previous best time for that level.
 - Beating `vim_god`'s raw best time awards a secret fourth red star.
+- If `vim_god` has not completed that level yet, the secret red star target falls back to 180 seconds.
 - The secret red star is stored separately from the normal three-star score and appears off-center without an outline.
 - Stage time limits use `vim_god` benchmarks when available: `vim_god`'s best time for that stage plus 15 seconds.
 - If `vim_god` or a stage benchmark is unavailable, the default 3-star time limit is 180 seconds.
