@@ -275,7 +275,7 @@ export default function GameScreen({
         </>
       );
     } else if (vim.mode === "VISUAL_LINE") {
-      const cursorIndex = Math.max(start, text[end - 1] === "\n" ? end - 2 : end - 1);
+      const cursorIndex = vim.visualLineCursorIndex ?? Math.max(start, text[end - 1] === "\n" ? end - 2 : end - 1);
       const before = text.slice(0, start);
       const selectedBeforeCursor = text.slice(start, cursorIndex);
       const cursorChar = text[cursorIndex] || " ";

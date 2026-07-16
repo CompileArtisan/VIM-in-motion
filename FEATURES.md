@@ -97,7 +97,7 @@ Current instructor credentials:
 - `V` starts line-wise selection.
 - Motions adjust visual selection.
 - In Visual Line mode, `j` and `k` expand the selection by whole lines, including the final selected line character and line break when present.
-- The Visual Line cursor is rendered on the last selected line while the internal selection still includes the line break for whole-line operations.
+- The Visual Line cursor follows the focused selected line while the internal selection still includes line breaks for whole-line operations.
 - `d`, `x`, and `y` act on the selected range.
 
 ## Text Objects

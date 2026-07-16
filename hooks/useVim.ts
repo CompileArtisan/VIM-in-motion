@@ -14,6 +14,7 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
   const [commandText, setCommandText] = useState("");
   const [searchText, setSearchText] = useState("");
   const [cursor, setCursor] = useState({ start: 0, end: 0 });
+  const [visualLineCursorIndex, setVisualLineCursorIndex] = useState<number | null>(null);
   const [historyLine, setHistoryLine] = useState<string[]>([]);
   const [redoLine, setRedoLine] = useState<string[]>([]);
   
@@ -38,6 +39,7 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
     setRedoLine([]);
     setMode("NORMAL");
     setCursor({ start: 0, end: 0 });
+    setVisualLineCursorIndex(null);
     bufferRef.current = "";
     lastEditRef.current = "";
     clipboardRef.current = "";
@@ -284,6 +286,9 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
   const setVisualLineSelection = (anchorLine: number, focusLine: number) => {
     visualLineAnchorRef.current = anchorLine;
     visualLineFocusRef.current = focusLine;
+    const focusRange = getLineRangeByIndexes(focusLine, focusLine);
+    const focusLineEnd = text[focusRange.end - 1] === "\n" ? focusRange.end - 1 : focusRange.end;
+    setVisualLineCursorIndex(Math.max(focusRange.start, focusLineEnd - 1));
     setCursor(getLineRangeByIndexes(anchorLine, focusLine));
   };
 
@@ -561,6 +566,7 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
       setMode("NORMAL");
       visualLineAnchorRef.current = null;
       visualLineFocusRef.current = null;
+      setVisualLineCursorIndex(null);
       updateCursor(cursor.start);
       trackUsage("Esc", ["mode:normal"]);
       recordMacroKey("Esc");
@@ -670,6 +676,7 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
         setMode("NORMAL");
         visualLineAnchorRef.current = null;
         visualLineFocusRef.current = null;
+        setVisualLineCursorIndex(null);
         updateCursor(start);
         trackUsage(buf, [
           "visual",
@@ -1041,6 +1048,7 @@ export function useVim(initialText: string, onWq?: (finalText: string, vimUsage:
     commandText,
     searchText,
     cursor,
+    visualLineCursorIndex,
     textareaRef,
     handleKeyDown,
     handleChange,
