@@ -49,6 +49,7 @@ export function useTerminal(
   stageStars: Record<string, number>,
   stageSecretStars: Record<string, boolean>,
   adminUnlockedStageLimit: number,
+  isExemptFromAdminLocks: boolean,
   onOpenFile?: (filename: string) => void,
   onReset?: () => void | Promise<void>
 ) {
@@ -213,7 +214,7 @@ export function useTerminal(
                   color = "#f5c842"; // gold for all three stars
                 } else if (completedStages.includes(stageId)) {
                   color = "#4af626"; // green for completed
-                } else if (stageIndex <= adminUnlockedStageLimit) {
+                } else if (isExemptFromAdminLocks || stageIndex <= adminUnlockedStageLimit) {
                   // check if previous is done or we are stage 0
                   const prevDone = stageIndex === 0 || completedStages.includes(`stage-${stageIndex}`);
                   if (prevDone) {
@@ -342,7 +343,7 @@ export function useTerminal(
               
               if (stageIdMatch) {
                 const stageIndex = parseInt(stageIdMatch[1]) - 1;
-                if (stageIndex > adminUnlockedStageLimit) {
+                if (!isExemptFromAdminLocks && stageIndex > adminUnlockedStageLimit) {
                   isLocked = true;
                 } else if (stageIndex > 0 && !completedStages.includes(`stage-${stageIndex}`)) {
                   isLocked = true;

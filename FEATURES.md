@@ -9,6 +9,8 @@ This document lists the features currently implemented in the online Vim editor/
 - Player login accepts either username or email, plus password.
 - Player usernames and emails are unique; one username is mapped to one email.
 - Player information is stored separately from progress in Firebase.
+- Players are automatically added to the exempt list 24 hours after joining.
+- Exempt players bypass the admin page's max-stage unlock cap while still following normal stage progression.
 - Instructor login requires admin username and password.
 - Browser session restore through `localStorage`.
 - Simulated terminal entry point before opening stage files.
@@ -175,6 +177,7 @@ Stage 9 uses a multi-line quoted placeholder so quote text objects such as `ci"`
 
 - Live player list.
 - Admin player labels show usernames, with email shown in the dedicated email column and profile metadata.
+- Admin dashboard shows how many players are on the exempt list and badges exempt players.
 - Separate player profile page opens by clicking a player card or player table row.
 - Player profile includes a Back button to return to the main admin dashboard.
 - Player profile shows levels completed, total stars, per-level completion, per-level stars, and time taken per level.
@@ -193,6 +196,7 @@ When Firebase is configured:
 
 - Player signup stores `username`, `email`, password hash, progress, and activity metadata.
 - Email uniqueness is tracked through a `playerEmails` index.
+- Exempt players are tracked in Firebase under both their player record and the `exemptPlayers` list.
 - Player progress is saved to Firebase Realtime Database.
 - Per-stage best times are saved and used for the `vim_god` benchmark account.
 - Completed stages, stars, and best times are synced from the live Firebase player record.

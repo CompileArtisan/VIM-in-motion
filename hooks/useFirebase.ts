@@ -16,6 +16,9 @@ export interface PlayerData extends StageData {
   username: string;
   email: string;
   passwordHash?: string;
+  joinedAt?: number;
+  exempt?: boolean;
+  exemptedAt?: number;
   lastActive: number;
 }
 
@@ -24,6 +27,34 @@ export interface ActivityLog {
   player: string;
   msg: string;
 }
+
+const EXEMPT_AFTER_MS = 24 * 60 * 60 * 1000;
+
+const sanitizeFirebaseKey = (value: string) => value.replace(/[.#$[\]]/g, '_');
+
+const getJoinTime = (player: Partial<PlayerData>) => player.joinedAt || player.lastActive;
+
+const getExemptionUpdates = (playerKey: string, player: Partial<PlayerData>, now = Date.now()) => {
+  const joinedAt = getJoinTime(player);
+  const updates: Record<string, any> = {};
+
+  if (!player.joinedAt && joinedAt) {
+    updates[`players/${playerKey}/joinedAt`] = joinedAt;
+  }
+
+  if (joinedAt && !player.exempt && now - joinedAt >= EXEMPT_AFTER_MS) {
+    updates[`players/${playerKey}/exempt`] = true;
+    updates[`players/${playerKey}/exemptedAt`] = now;
+    updates[`exemptPlayers/${playerKey}`] = {
+      username: player.username || player.name || playerKey,
+      email: player.email || "",
+      joinedAt,
+      exemptedAt: now,
+    };
+  }
+
+  return updates;
+};
 
 export function useFirebasePlayer(playerName: string | undefined) {
   const [playerData, setPlayerData] = useState<PlayerData | null>(null);
@@ -65,26 +96,56 @@ export function useFirebasePlayer(playerName: string | undefined) {
       return;
     }
 
-    const sanitizedName = playerName.replace(/[.#$[\]]/g, '_');
+    const sanitizedName = sanitizeFirebaseKey(playerName);
     const playerRef = ref(db, `players/${sanitizedName}`);
     const unsubscribe = onValue(playerRef, (snapshot) => {
-      setPlayerData(snapshot.exists() ? snapshot.val() as PlayerData : null);
+      if (!snapshot.exists()) {
+        setPlayerData(null);
+        return;
+      }
+
+      const data = snapshot.val() as PlayerData;
+      setPlayerData(data);
+
+      const exemptionUpdates = getExemptionUpdates(sanitizedName, data);
+      if (Object.keys(exemptionUpdates).length > 0) {
+        update(ref(db), exemptionUpdates);
+      }
     });
 
     return () => unsubscribe();
   }, [isFirebaseReady, playerName]);
+
+  useEffect(() => {
+    if (!isFirebaseReady || !playerName || !playerData || playerData.exempt) return;
+
+    const sanitizedName = sanitizeFirebaseKey(playerName);
+    const joinedAt = getJoinTime(playerData);
+    if (!joinedAt) return;
+
+    const delay = Math.max(0, joinedAt + EXEMPT_AFTER_MS - Date.now());
+    const timer = window.setTimeout(() => {
+      const exemptionUpdates = getExemptionUpdates(sanitizedName, playerData);
+      if (Object.keys(exemptionUpdates).length > 0) {
+        update(ref(db), exemptionUpdates);
+      }
+    }, delay);
+
+    return () => window.clearTimeout(timer);
+  }, [isFirebaseReady, playerName, playerData]);
 
   // Save Progress
   const saveProgress = async (stageData: StageData) => {
     if (!isFirebaseReady || !playerName) return;
     
     // Clean player name to be a valid Firebase Realtime DB key
-    const sanitizedName = playerName.replace(/[.#$[\]]/g, '_');
+    const sanitizedName = sanitizeFirebaseKey(playerName);
     const playerRef = ref(db, `players/${sanitizedName}`);
     
     const data: Partial<PlayerData> = {
       name: playerName,
       username: playerName,
+      joinedAt: playerData?.joinedAt || Date.now(),
       currentStage: stageData.currentStage,
       completedStages: stageData.completedStages,
       stageStars: stageData.stageStars || {},
@@ -93,6 +154,10 @@ export function useFirebasePlayer(playerName: string | undefined) {
       lastActive: Date.now(),
       totalStages: stageData.totalStages,
     };
+    if (playerData?.exempt) {
+      data.exempt = true;
+      if (playerData.exemptedAt) data.exemptedAt = playerData.exemptedAt;
+    }
     
     await update(playerRef, data);
   };
@@ -101,7 +166,7 @@ export function useFirebasePlayer(playerName: string | undefined) {
   const loadProgress = async (): Promise<PlayerData | null> => {
     if (!isFirebaseReady || !playerName) return null;
     
-    const sanitizedName = playerName.replace(/[.#$[\]]/g, '_');
+    const sanitizedName = sanitizeFirebaseKey(playerName);
     const snapshot = await get(ref(db, `players/${sanitizedName}`));
     
     if (snapshot.exists()) {
@@ -115,7 +180,7 @@ export function useFirebasePlayer(playerName: string | undefined) {
   const resetProgress = async (totalStages: number) => {
     if (!isFirebaseReady || !playerName) return;
 
-    const sanitizedName = playerName.replace(/[.#$[\]]/g, '_');
+    const sanitizedName = sanitizeFirebaseKey(playerName);
     await update(ref(db, `players/${sanitizedName}`), {
       currentStage: 0,
       completedStages: [],
@@ -160,7 +225,17 @@ export function useAdminDashboard(isAdmin: boolean | undefined) {
     const playersRef = ref(db, 'players');
     const unsubscribePlayers = onValue(playersRef, (snapshot) => {
       if (snapshot.exists()) {
-        setPlayers(snapshot.val());
+        const nextPlayers = snapshot.val() as Record<string, PlayerData>;
+        setPlayers(nextPlayers);
+
+        const now = Date.now();
+        const exemptionUpdates = Object.entries(nextPlayers).reduce<Record<string, any>>((updates, [playerKey, player]) => {
+          return { ...updates, ...getExemptionUpdates(playerKey, player, now) };
+        }, {});
+
+        if (Object.keys(exemptionUpdates).length > 0) {
+          update(ref(db), exemptionUpdates);
+        }
       } else {
         setPlayers({});
       }
@@ -199,11 +274,13 @@ export function useAdminDashboard(isAdmin: boolean | undefined) {
     };
 
     if (player?.email) {
-      updates[`playerEmails/${player.email.replace(/[.#$[\]]/g, '_')}`] = null;
+      updates[`playerEmails/${sanitizeFirebaseKey(player.email)}`] = null;
     }
+    updates[`exemptPlayers/${playerKey}`] = null;
 
     await update(ref(db), updates);
   };
 
   return { players, activityLogs, unlockedStageLimit, setGlobalUnlockLimit, deletePlayer };
 }
+

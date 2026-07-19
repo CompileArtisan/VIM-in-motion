@@ -38,7 +38,7 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
   };
 
   const activePlayers = playersList.filter(p => p.lastActive > fiveMinAgo).length;
-  const completedPlayers = playersList.filter(p => p.completedStages?.length === totalLevels).length;
+  const exemptPlayers = playersList.filter(p => p.exempt).length;
   const starTotal = (player: PlayerData) => Object.values(player.stageStars || {}).reduce((sum, stars) => sum + stars, 0);
   const secretStarTotal = (player: PlayerData) => Object.values(player.stageSecretStars || {}).filter(Boolean).length;
   const maxStars = totalLevels * 3;
@@ -69,6 +69,7 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
       <div className="admin-body">
         <div className="admin-sidebar" style={{overflowY: "auto"}}>
           <div className="admin-sidebar-title">Players Online</div>
+          <div style={{color:"var(--muted)", fontSize:".7rem", marginBottom:".75rem"}}>{exemptPlayers} on exempt list</div>
           <div id="admin-player-list">
             {playersList.length === 0 ? <div style={{color:"var(--muted)", fontSize:".75rem"}}>No players yet...</div> : null}
             {playersList.map(p => {
@@ -81,7 +82,7 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
                   onClick={() => openPlayerProfile(p.playerKey)}
                 >
                   <div className="pc-name">{active && <span className="online-dot"></span>}{playerLabel(p)}</div>
-                  <div className="pc-meta">{p.completedStages?.length || 0}/{totalLevels} stages done · {starTotal(p)}/{maxStars} stars · {bestTimeTotal(p)}s best</div>
+                  <div className="pc-meta">{p.completedStages?.length || 0}/{totalLevels} stages done · {starTotal(p)}/{maxStars} stars · {bestTimeTotal(p)}s best{p.exempt ? " · exempt" : ""}</div>
                   <div className="pc-stage">S{stageNum}</div>
                   <button
                     className="btn btn-danger"
@@ -113,6 +114,7 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
                   <span>{starTotal(selectedPlayer)}/{maxStars} stars</span>
                   <span>{secretStarTotal(selectedPlayer)} secret red stars</span>
                   <span>{bestTimeTotal(selectedPlayer)}s total best time</span>
+                  {selectedPlayer.exempt && <span>Exempt from admin locks</span>}
                 </div>
               </div>
 
@@ -207,7 +209,10 @@ export default function AdminDashboard({ players, activityLogs, totalLevels, unl
 
                 return (
                   <tr key={p.playerKey} onClick={() => openPlayerProfile(p.playerKey)} style={{cursor: "pointer"}}>
-                    <td style={{fontWeight:700}}>{playerLabel(p)}</td>
+                    <td style={{fontWeight:700}}>
+                      {playerLabel(p)}
+                      {p.exempt && <span className="badge badge-blue" style={{marginLeft: ".5rem"}}>Exempt</span>}
+                    </td>
                     <td style={{color:"var(--muted)", fontSize:".72rem"}}>{p.email || "-"}</td>
                     <td>
                       <span style={{color:"var(--accent2)"}}>S{(p.currentStage || 0) + 1}</span> 

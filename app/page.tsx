@@ -251,6 +251,8 @@ export default function Home() {
       stageBestTimes: {},
       stageSecretStars: {},
       totalStages: LEVELS.length,
+      joinedAt: Date.now(),
+      exempt: false,
       lastActive: Date.now(),
     };
     await update(ref(db), {
@@ -355,6 +357,8 @@ export default function Home() {
       totalStages: LEVELS.length,
     });
   };
+
+  const isExemptFromAdminLocks = !!playerData?.exempt;
 
   return (
     <>
@@ -481,6 +485,7 @@ export default function Home() {
           stageSecretStars={stageSecretStars}
           benchmarkStageTimes={vimGodStageTimes}
           adminUnlockedStageLimit={adminUnlockedStageLimit}
+          isExemptFromAdminLocks={isExemptFromAdminLocks}
           onProgress={onGameProgress}
           logActivity={logActivity}
           onLogout={handleLogout} 

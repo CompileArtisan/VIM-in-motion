@@ -13,6 +13,7 @@ interface GameScreenProps {
   stageSecretStars: Record<string, boolean>;
   benchmarkStageTimes: Record<string, number>;
   adminUnlockedStageLimit: number;
+  isExemptFromAdminLocks: boolean;
   onProgress: (
     newStage: number,
     completed: string[],
@@ -40,6 +41,7 @@ export default function GameScreen({
   stageSecretStars,
   benchmarkStageTimes,
   adminUnlockedStageLimit,
+  isExemptFromAdminLocks,
   onProgress,
   logActivity,
   onLogout,
@@ -192,7 +194,7 @@ export default function GameScreen({
     autocompleteOptions,
     autocompleteIndex,
     awaitingResetConfirm,
-  } = useTerminal(user, completedStages, stageStars, stageSecretStars, adminUnlockedStageLimit, (filename) => {
+  } = useTerminal(user, completedStages, stageStars, stageSecretStars, adminUnlockedStageLimit, isExemptFromAdminLocks, (filename) => {
     if (filename === "README.md" || filename === "README.org") {
       setOpenedReadme(filename);
     } else {
@@ -348,7 +350,7 @@ export default function GameScreen({
     // Attempt to automatically go to the next stage, but respect locks
     const nextStage = currentStage + 1;
     if (nextStage < LEVELS.length) {
-      const isNextAdminUnlocked = nextStage <= adminUnlockedStageLimit;
+      const isNextAdminUnlocked = isExemptFromAdminLocks || nextStage <= adminUnlockedStageLimit;
       const isNextPrevDone = completedStages.includes(LEVELS[nextStage - 1].id) || level?.id === LEVELS[nextStage - 1].id;
       
       if (isNextAdminUnlocked && isNextPrevDone) {
@@ -403,7 +405,7 @@ export default function GameScreen({
 
     window.addEventListener("keydown", handleWinnerKeyDown);
     return () => window.removeEventListener("keydown", handleWinnerKeyDown);
-  }, [showWinner, winnerAnimationSkipped, winnerSelectedAction, lastStarResults, lastHadPreviousBest, lastIsPersonalBest, currentStage, completedStages, adminUnlockedStageLimit, level]);
+  }, [showWinner, winnerAnimationSkipped, winnerSelectedAction, lastStarResults, lastHadPreviousBest, lastIsPersonalBest, currentStage, completedStages, adminUnlockedStageLimit, isExemptFromAdminLocks, level]);
 
   useEffect(() => {
     if (!showWinner || winnerAnimationSkipped) return;
@@ -623,7 +625,7 @@ export default function GameScreen({
             <div className="winner-title">{currentStage + 1 < LEVELS.length ? "🎉 Stage Clear!" : "🏆 All Done!"}</div>
             <div className="winner-sub">
               {currentStage + 1 < LEVELS.length 
-                ? (currentStage + 1 <= adminUnlockedStageLimit 
+                ? (isExemptFromAdminLocks || currentStage + 1 <= adminUnlockedStageLimit
                   ? `"${level.title}" complete. Ready for the next challenge?`
                   : `"${level.title}" complete. Waiting for Instructor to unlock the next stage...`)
                 : "You've completed all stages. You're a VIM ninja! 🥷"}
@@ -697,7 +699,7 @@ export default function GameScreen({
               </div>
             ) : (
               <button className="btn btn-primary" style={{marginTop:"1.5rem", width:"auto", padding:".6rem 2rem"}} onClick={handleDismissWinner}>
-                {currentStage + 1 < LEVELS.length && currentStage + 1 > adminUnlockedStageLimit ? "Close" : "Continue"}
+                {currentStage + 1 < LEVELS.length && !isExemptFromAdminLocks && currentStage + 1 > adminUnlockedStageLimit ? "Close" : "Continue"}
               </button>
             )}          </div>
         </div>
