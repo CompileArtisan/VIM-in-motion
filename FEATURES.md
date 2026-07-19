@@ -4,8 +4,8 @@ This document lists the features currently implemented in the online Vim editor/
 
 ## App Flow
 
-- Player account creation with separate username, student email, and password fields.
-- Student email must match `bl.en.u4xxxxxxxx` or `bl.sc.u4xxxxxxxx`.
+- Player account creation with separate username, standard email, and password fields.
+- Email addresses use normal email format such as `name@example.com`.
 - Player login accepts either username or email, plus password.
 - Player usernames and emails are unique; one username is mapped to one email.
 - Player information is stored separately from progress in Firebase.

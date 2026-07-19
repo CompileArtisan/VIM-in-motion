@@ -19,7 +19,7 @@ interface User {
   isAdmin: boolean;
 }
 
-const STUDENT_EMAIL_PATTERN = /^bl\.(en|sc)\.u4[a-z0-9]{8}$/i;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const sanitizeFirebaseKey = (value: string) => value.replace(/[.#$[\]]/g, "_");
 
@@ -207,8 +207,8 @@ export default function Home() {
       setSignupError("Username must be 3-24 characters using letters, numbers, _ or -");
       return;
     }
-    if (!STUDENT_EMAIL_PATTERN.test(email)) {
-      setSignupError('Email must match "bl.en.u4xxxxxxxx" or "bl.sc.u4xxxxxxxx"');
+    if (!EMAIL_PATTERN.test(email)) {
+      setSignupError("Please enter a valid email address");
       return;
     }
     if (password.length < 6) {
@@ -367,7 +367,7 @@ export default function Home() {
             <label>Username or Email</label>
             <input 
               type="text" 
-              placeholder="ada_lovelace or bl.en.u4xxxxxxxx / bl.sc.u4xxxxxxxx" 
+              placeholder="ada_lovelace or ada@example.com" 
               value={loginIdentifier}
               onChange={(e) => setLoginIdentifier(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleLoginPlayer()}
@@ -400,7 +400,7 @@ export default function Home() {
         <div className="login-bg"></div>
         <div className="login-box">
           <div className="logo" style={{fontSize:"2.5rem"}}>Create <span>Player</span></div>
-          <div className="tagline">// username - student email - password</div>
+          <div className="tagline">// username - email - password</div>
           <div className="field-group">
             <label>Username</label>
             <input
@@ -415,7 +415,7 @@ export default function Home() {
             <label>Email</label>
             <input
               type="text"
-              placeholder="bl.en.u4xxxxxxxx or bl.sc.u4xxxxxxxx"
+              placeholder="ada@example.com"
               value={signupEmail}
               onChange={(e) => setSignupEmail(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSignupPlayer()}
